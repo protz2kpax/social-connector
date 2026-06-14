@@ -15,32 +15,43 @@ Same principle for all providers: login is **manual** (they block automated logi
 ## Installation
 
 ```bash
-npm install
+npm install                       # also builds dist/ via the prepare script
 npx playwright install chromium
+npm link                          # installs the `social-connector` command globally
 ```
+
+After `npm link`, the `social-connector` binary is on your PATH. Rebuild
+(`npm run build`) after changing the source. Skip `npm link` and use
+`npx tsx src/cli.ts ...` if you prefer running from source.
 
 ## Usage — CLI
 
+`social-connector <command> [provider] [options]`. Run `-h` for help.
+
 ```bash
-# 1) MANUAL login (once per provider). Window forced visible.
-npm run login:fb          # Facebook  (= login --provider facebook)
-npm run login:wa          # WhatsApp  (scan the QR)
-npm run login:li          # LinkedIn
+social-connector -h                  # full help
+social-connector post -h             # command help
+social-connector --version
+
+# 1) MANUAL login (once per provider). Always opens a visible window.
+social-connector login facebook
+social-connector login whatsapp      # scan the QR
+social-connector login linkedin
 
 # 2) Post / send (reuses the session). Chromium hidden by default.
-npm run post -- facebook "Hello my wall"
-npm run post -- linkedin "Hello my feed"
-npm run post -- whatsapp --to 33612345678 "Hi!"
+social-connector post facebook "Hello my wall"
+social-connector post linkedin "Hello my feed"
+social-connector post whatsapp --to 33612345678 "Hi!"
 
-# Show Chromium for a run (debug): --show / --headed / -s
-npm run post -- whatsapp --to 33612345678 "Hi!" --show
+# Show Chromium for a run (debug): -s / --show / --headed
+social-connector post whatsapp --to 33612345678 "Hi!" --show
 
 # Session status
-npm run status -- facebook
+social-connector status facebook
 ```
 
-> `npm run post -- <provider> ...` passes `--provider <provider>` to the CLI.
-> Direct form: `npx tsx src/cli.ts post --provider whatsapp --to 33612345678 "Hi"`.
+> The provider can be the first argument (`post facebook "..."`), or `--provider facebook`, or the `PROVIDER` env var.
+> The `npm run login:fb` / `post` / `status` scripts still work for running without a global install.
 
 ## Usage — API
 

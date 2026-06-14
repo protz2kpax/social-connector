@@ -28,6 +28,7 @@
     "login:wa": "tsx src/cli.ts login --provider whatsapp",
     "login:li": "tsx src/cli.ts login --provider linkedin",
     "typecheck": "tsc --noEmit",
+    "prepare": "npm run build",
     "prepublishOnly": "npm run build"
   },
   "keywords": [
