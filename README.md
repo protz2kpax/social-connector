@@ -46,6 +46,10 @@ social-connector post whatsapp --to 33612345678 "Hi!"
 # WhatsApp group / community announcement group, by name (experimental)
 social-connector post whatsapp --chat "My community - Announcements" "Hi all!"
 
+# List your WhatsApp groups (handy to copy an exact name for --chat)
+social-connector groups whatsapp
+social-connector groups whatsapp --json
+
 # Show Chromium for a run (debug): -s / --show / --headed
 social-connector post whatsapp --to 33612345678 "Hi!" --show
 
@@ -94,6 +98,7 @@ try {
 | `isLoggedIn()` | `true` if a saved session is valid |
 | `post(content, options?)` | Posts/sends. `options.target` (WhatsApp), `options.screenshotPath` |
 | `read(options?)` | Reads your own posts → `Post[]`. `options.limit` (default 10). Facebook/LinkedIn only; throws `UnsupportedActionError` for WhatsApp |
+| `listGroups(options?)` | Lists your group names → `string[]`. `options.limit` (0/omitted = all). WhatsApp only; throws `UnsupportedActionError` otherwise |
 | `close()` | Closes the browser |
 
 ### Typed errors

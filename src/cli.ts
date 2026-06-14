@@ -134,6 +134,7 @@ function generalHelp(): string {
     "  login   [provider]                     Open a window, log in by hand (or scan QR), save the session",
     '  post    [provider] [--to <num>] "msg"  Post (Facebook/LinkedIn) or send (WhatsApp, needs --to)',
     "  read    [provider] [--limit N]         Read your own posts (Facebook, LinkedIn)",
+    "  groups  [provider] [--limit N]         List your groups (WhatsApp)",
     "  status  [provider]                     Print whether a valid session exists",
     "  help                                   Show this help",
     "",
@@ -156,6 +157,7 @@ function generalHelp(): string {
     `  ${BIN} post whatsapp --to 33612345678 "Hi!" --show`,
     `  ${BIN} post whatsapp --chat "My community - Announcements" "Hi all!"`,
     `  ${BIN} read linkedin --limit 5`,
+    `  ${BIN} groups whatsapp`,
     `  ${BIN} status linkedin`,
   ].join("\n");
 }
@@ -200,6 +202,19 @@ function commandHelp(cmd: string): string {
         `Examples:`,
         `  ${BIN} read facebook`,
         `  ${BIN} read linkedin --limit 5 --json`,
+      ].join("\n");
+    case "groups":
+      return [
+        `Usage: ${BIN} groups [provider] [--limit N] [--json]`,
+        "",
+        "List the names of your WhatsApp groups (uses the in-app Groups filter).",
+        "Use a name with `post --chat \"<name>\"` to message a group.",
+        "",
+        "Options: -n/--limit (0/omitted = all), --json, -s/--show",
+        "",
+        `Examples:`,
+        `  ${BIN} groups whatsapp`,
+        `  ${BIN} groups whatsapp --json`,
       ].join("\n");
     case "status":
       return [
@@ -291,6 +306,19 @@ async function main(): Promise<void> {
         const posts = await fb.read({ limit: args.limit });
         if (args.json) console.log(JSON.stringify(posts, null, 2));
         else printPosts(posts);
+      } finally {
+        await fb.close();
+      }
+      break;
+    }
+
+    case "groups": {
+      const fb = makeConnector(takeProvider(args), { show: args.show });
+      try {
+        const groups = await fb.listGroups({ limit: args.limit });
+        if (args.json) console.log(JSON.stringify(groups, null, 2));
+        else if (groups.length === 0) console.log("No groups found.");
+        else groups.forEach((g, i) => console.log(`${i + 1}. ${g}`));
       } finally {
         await fb.close();
       }

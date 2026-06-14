@@ -53,6 +53,18 @@ const INVALID_NUMBER_DIALOG = [
   'div[role="dialog"]:has-text("URL invalide")',
 ];
 
+const CHAT_LIST = ["#pane-side", "#side"];
+
+const GROUPS_TAB = [
+  'button[role="tab"]:has-text("Groupes")',
+  'button[role="tab"]:has-text("Groups")',
+  '[role="tab"]:has-text("Groupes")',
+  '[role="tab"]:has-text("Groups")',
+];
+
+/** CSS for the chat-row title (the chat name), excluding message previews. */
+const CHAT_TITLE = '#pane-side div[data-testid="cell-frame-title"] span[title]';
+
 /** Opens a contact's chat via the phone deep-link. */
 async function openByPhone(page: Page, phone: string, log: Logger): Promise<void> {
   log.step(`Opening the chat with ${phone}...`);
@@ -157,5 +169,46 @@ export const whatsapp: SocialProvider = {
     // Best-effort confirmation: the send button disappears once sent.
     await waitGone(page, SEND_BUTTON, 8000);
     log.step("Message sent.");
+  },
+
+  async listGroups({ page, options, log }) {
+    const limit = options.limit ?? 0; // 0 = all
+    log.step("Opening WhatsApp...");
+    await page.goto("https://web.whatsapp.com/", { waitUntil: "domcontentloaded" });
+    await requireVisible(page, CHAT_LIST, "WhatsApp chat list", 35000);
+
+    log.step("Filtering to groups...");
+    const tab = await firstVisible(page, GROUPS_TAB, 8000);
+    if (tab) await tab.click().catch(() => {});
+    else log.info("Groups filter not found — results may include non-groups.");
+    await page.waitForTimeout(1500);
+
+    log.step("Collecting group names...");
+    const names = new Set<string>();
+    let stale = 0;
+    while (stale < 6) {
+      const before = names.size;
+      const batch = await page
+        .locator(CHAT_TITLE)
+        .evaluateAll((els) =>
+          els.map((e) => e.getAttribute("title") ?? "").filter(Boolean),
+        )
+        .catch(() => [] as string[]);
+      for (const n of batch) names.add(n);
+
+      if (limit && names.size >= limit) break;
+      if (names.size === before) stale++;
+      else stale = 0;
+      // Scroll the chat-list pane (virtualized) to load more rows.
+      await page
+        .locator("#pane-side")
+        .evaluate((el) => el.scrollBy(0, Math.round(el.clientHeight * 0.85)))
+        .catch(() => {});
+      await page.waitForTimeout(700);
+    }
+
+    const list = [...names];
+    log.info(`Found ${list.length} group(s).`);
+    return limit ? list.slice(0, limit) : list;
   },
 };

@@ -87,4 +87,10 @@ export interface SocialProvider {
    * concept of a post feed (e.g. WhatsApp) omit it.
    */
   readPosts?(ctx: ReadContext): Promise<Post[]>;
+  /**
+   * Lists the names of the groups the user belongs to. Optional: only
+   * providers with a group concept (WhatsApp) implement it. Honors
+   * `options.limit` (0/undefined = all).
+   */
+  listGroups?(ctx: ReadContext): Promise<string[]>;
 }

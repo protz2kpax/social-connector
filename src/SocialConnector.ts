@@ -126,6 +126,29 @@ export class SocialConnector {
     });
   }
 
+  /**
+   * Lists the names of the groups the user belongs to (WhatsApp).
+   * Throws UnsupportedActionError for providers without a group concept.
+   */
+  async listGroups(options: ReadOptions = {}): Promise<string[]> {
+    await this.start();
+    if (!(await this.auth.isLoggedIn())) {
+      throw new NotLoggedInError(
+        `No valid session for ${this.provider.label}. Run login() first.`,
+      );
+    }
+    if (!this.provider.listGroups) {
+      throw new UnsupportedActionError(
+        `${this.provider.label} does not support listing groups.`,
+      );
+    }
+    return this.provider.listGroups({
+      page: this.session.page,
+      options,
+      log: this.session.logger,
+    });
+  }
+
   /** Closes the browser. */
   async close(): Promise<void> {
     await this.session.close();
