@@ -2,8 +2,8 @@
  * Exemple d'utilisation programmatique.
  * Lance avec :  npx tsx examples/post.ts "Mon message"
  *
- * Identifiants lus depuis les variables d'env FB_EMAIL / FB_PASSWORD
- * (ou un fichier .env charge par `node --env-file=.env`).
+ * La connexion est manuelle : si aucune session valide n'existe, une fenetre
+ * s'ouvre et tu te connectes a la main. La session est ensuite reutilisee.
  */
 import { FacebookConnector } from "../src/index.js";
 
@@ -12,14 +12,9 @@ const message = process.argv.slice(2).join(" ") || "Hello depuis facebook-connec
 const fb = new FacebookConnector({ statePath: "./fb-state.json", headless: false });
 
 try {
-  // Login : reutilise la session sauvee si valide, sinon utilise les creds.
-  if (!(await fb.isLoggedIn())) {
-    await fb.login({
-      email: process.env.FB_EMAIL!,
-      password: process.env.FB_PASSWORD!,
-    });
-  }
-
+  // login() : ne fait rien si la session est valide, sinon attend la
+  // connexion manuelle dans la fenetre.
+  await fb.login();
   await fb.postToWall(message);
   console.log("Publie:", message);
 } finally {

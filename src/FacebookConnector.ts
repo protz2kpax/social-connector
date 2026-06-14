@@ -1,5 +1,5 @@
 import { BrowserSession } from "./BrowserSession.js";
-import { AuthManager, type Credentials, type LoginOptions } from "./AuthManager.js";
+import { AuthManager, type ManualLoginOptions } from "./AuthManager.js";
 import { WallPoster, type PostOptions } from "./WallPoster.js";
 import { NotLoggedInError } from "./errors.js";
 import { createLogger } from "./logger.js";
@@ -21,9 +21,13 @@ export interface FacebookConnectorOptions {
  * Facade publique de la librairie.
  *
  *   const fb = new FacebookConnector();
- *   await fb.login({ email, password });   // 1 fois — session sauvee ensuite
+ *   await fb.login();                 // login MANUEL dans la fenetre, 1 fois
  *   await fb.postToWall("Mon message");
  *   await fb.close();
+ *
+ * La connexion est toujours manuelle (Facebook bloque le login automatise).
+ * Une fois connecte, la session est sauvee et reutilisee : les appels suivants
+ * a login() ne font rien si la session est encore valide.
  */
 export class FacebookConnector {
   private readonly session: BrowserSession;
@@ -52,24 +56,16 @@ export class FacebookConnector {
   }
 
   /**
-   * S'assure d'etre connecte. Reutilise la session sauvee si valide, sinon
-   * saisit les identifiants (et gere un eventuel checkpoint manuel).
+   * Connexion MANUELLE : reutilise la session sauvee si valide, sinon ouvre la
+   * fenetre et attend que tu te connectes a la main, puis sauve la session.
+   * Necessite headless=false (fenetre visible).
    */
-  async login(creds: Credentials, opts?: LoginOptions): Promise<void> {
+  async login(opts?: ManualLoginOptions): Promise<void> {
     await this.start();
-    await this.auth.ensureLoggedIn(creds, opts);
+    await this.auth.waitForManualLogin(opts);
   }
 
-  /**
-   * Login 100% MANUEL : ouvre une fenetre, tu te connectes a la main, la lib
-   * sauve la session. Necessite headless=false. Recommande (evite la detection).
-   */
-  async loginManually(opts: { timeoutMs?: number } = {}): Promise<void> {
-    await this.start();
-    await this.auth.waitForManualLogin(opts.timeoutMs);
-  }
-
-  /** Verifie une session deja sauvegardee, sans identifiants. */
+  /** Verifie une session deja sauvegardee. */
   async isLoggedIn(): Promise<boolean> {
     await this.start();
     return this.auth.isLoggedIn();
@@ -80,7 +76,7 @@ export class FacebookConnector {
     await this.start();
     if (!(await this.auth.isLoggedIn())) {
       throw new NotLoggedInError(
-        "Pas de session valide. Appelle login({ email, password }) d'abord.",
+        "Pas de session valide. Lance d'abord la connexion manuelle (fb.login()).",
       );
     }
     await this.poster.post(text, opts);

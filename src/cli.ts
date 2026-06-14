@@ -1,15 +1,15 @@
 #!/usr/bin/env node
-import { createInterface } from "node:readline/promises";
-import { stdin, stdout } from "node:process";
 import { existsSync } from "node:fs";
 import { FacebookConnector } from "./FacebookConnector.js";
 import { FacebookConnectorError } from "./errors.js";
 
 /**
- * CLI minimale.
+ * CLI minimale. La connexion est TOUJOURS manuelle (Facebook bloque le login
+ * automatise) : une fenetre s'ouvre, tu te connectes a la main, la session est
+ * sauvegardee puis reutilisee.
  *
- *   facebook-connector login                 # se connecte (creds via .env ou prompt), sauve la session
- *   facebook-connector post "Mon message"    # publie sur le mur
+ *   facebook-connector login                 # ouvre la fenetre, connexion manuelle
+ *   facebook-connector post "Mon message"    # publie sur le mur (session requise)
  *   facebook-connector status                # dit si une session valide existe
  */
 
@@ -29,37 +29,6 @@ function bool(v: string | undefined, def: boolean): boolean {
   return v === "1" || v.toLowerCase() === "true";
 }
 
-async function prompt(question: string, hidden = false): Promise<string> {
-  const rl = createInterface({ input: stdin, output: stdout, terminal: true });
-  if (hidden) {
-    // Masque la saisie (mot de passe).
-    const orig = (rl as unknown as { _writeToOutput?: (s: string) => void })
-      ._writeToOutput;
-    (rl as unknown as { _writeToOutput: (s: string) => void })._writeToOutput =
-      () => {};
-    const answer = await rl.question(question);
-    if (orig)
-      (rl as unknown as { _writeToOutput: (s: string) => void })._writeToOutput =
-        orig;
-    stdout.write("\n");
-    rl.close();
-    return answer;
-  }
-  const answer = await rl.question(question);
-  rl.close();
-  return answer;
-}
-
-async function getCredentials(): Promise<{ email: string; password: string }> {
-  const email = process.env.FB_EMAIL ?? (await prompt("Email Facebook: "));
-  const password =
-    process.env.FB_PASSWORD ?? (await prompt("Mot de passe: ", true));
-  if (!email || !password) {
-    throw new FacebookConnectorError("Email et mot de passe requis.");
-  }
-  return { email, password };
-}
-
 function makeConnector(forceHeaded = false): FacebookConnector {
   return new FacebookConnector({
     statePath: process.env.FB_STATE_PATH ?? "./fb-state.json",
@@ -73,22 +42,10 @@ async function main(): Promise<void> {
 
   switch (cmd) {
     case "login": {
-      const manual = rest.includes("--manual") || rest.includes("manual");
-      if (manual) {
-        // Login 100% manuel : fenetre visible forcee, aucun identifiant tape.
-        const fb = makeConnector(true);
-        try {
-          await fb.loginManually();
-          console.log("[OK] Connecte (manuel). Session sauvegardee.");
-        } finally {
-          await fb.close();
-        }
-        break;
-      }
-      const fb = makeConnector();
+      // Login manuel -> fenetre visible forcee.
+      const fb = makeConnector(true);
       try {
-        const creds = await getCredentials();
-        await fb.login(creds);
+        await fb.login();
         console.log("[OK] Connecte. Session sauvegardee.");
       } finally {
         await fb.close();
@@ -104,10 +61,11 @@ async function main(): Promise<void> {
       }
       const fb = makeConnector();
       try {
-        // Si une session existe deja, pas besoin de creds. Sinon on logge.
         if (!(await fb.isLoggedIn())) {
-          console.log("Pas de session valide — connexion...");
-          await fb.login(await getCredentials());
+          console.error(
+            "[ERREUR] Pas de session valide. Lance d'abord:  npm run login",
+          );
+          process.exit(1);
         }
         await fb.postToWall(text);
         console.log("[OK] Publie sur le mur.");
@@ -134,12 +92,11 @@ async function main(): Promise<void> {
           "facebook-connector — publie sur ton mur Facebook.",
           "",
           "Commandes:",
-          "  login                  Se connecte (creds via .env ou prompt) et sauve la session",
-          "  login --manual         Ouvre une fenetre, tu te connectes a la main (recommande)",
-          '  post "message"         Publie un message sur le mur',
+          "  login                  Ouvre une fenetre, tu te connectes a la main, sauve la session",
+          '  post "message"         Publie un message sur le mur (session requise)',
           "  status                 Indique si une session valide existe",
           "",
-          "Config (.env): FB_EMAIL, FB_PASSWORD, FB_STATE_PATH, FB_HEADLESS",
+          "Config (.env): FB_STATE_PATH, FB_HEADLESS (0=visible, 1=headless)",
         ].join("\n"),
       );
       if (cmd && cmd !== "help") process.exit(1);

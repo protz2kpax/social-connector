@@ -16,9 +16,6 @@ export class NotLoggedInError extends FacebookConnectorError {}
 /** Facebook demande une verification (captcha, 2FA, validation d'appareil). */
 export class CheckpointError extends FacebookConnectorError {}
 
-/** Identifiants refuses par Facebook. */
-export class InvalidCredentialsError extends FacebookConnectorError {}
-
 /** Un selecteur attendu est introuvable — l'UI Facebook a probablement change. */
 export class SelectorError extends FacebookConnectorError {}
 
