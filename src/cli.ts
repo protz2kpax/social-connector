@@ -2,6 +2,7 @@
 import { existsSync } from "node:fs";
 import { createRequire } from "node:module";
 import { SocialConnector } from "./SocialConnector.js";
+import { runAi } from "./ai.js";
 import { SocialConnectorError } from "./errors.js";
 import { PROVIDERS } from "./providers/index.js";
 import type { Post, ProviderId } from "./types.js";
@@ -46,6 +47,7 @@ interface Args {
   help?: boolean;
   limit?: number;
   json?: boolean;
+  yes?: boolean;
   positionals: string[];
 }
 
@@ -60,6 +62,7 @@ function parseArgs(argv: string[]): Args {
     else if (a === "--screenshot") out.screenshot = argv[++i];
     else if (a === "--limit" || a === "-n") out.limit = Number(argv[++i]);
     else if (a === "--json") out.json = true;
+    else if (a === "--yes" || a === "-y") out.yes = true;
     else if (a === "--show" || a === "--headed" || a === "-s") out.show = true;
     else if (a === "--help" || a === "-h") out.help = true;
     else out.positionals.push(a!);
@@ -135,6 +138,7 @@ function generalHelp(): string {
     '  post    [provider] [--to <num>] "msg"  Post (Facebook/LinkedIn) or send (WhatsApp, needs --to)',
     "  read    [provider] [--limit N]         Read your own posts (Facebook, LinkedIn)",
     "  groups  [provider] [--limit N]         List your groups (WhatsApp)",
+    '  ai      "instruction"                  Natural-language WhatsApp via LLM (OpenAI or Anthropic key)',
     "  status  [provider]                     Print whether a valid session exists",
     "  help                                   Show this help",
     "",
@@ -144,6 +148,7 @@ function generalHelp(): string {
     '  -c, --chat <name>     WhatsApp group/community by name (overrides --to)',
     "  -n, --limit <N>       read: max posts to fetch (default 10)",
     "      --json            read: print posts as JSON instead of text",
+    "  -y, --yes             ai: skip the confirmation prompt before sending",
     "  -s, --show, --headed  Show Chromium for this run (default: hidden). login is always visible.",
     "      --screenshot <p>  Save a screenshot before sending (debug)",
     "  -h, --help            Show help (use after a command for command help)",
@@ -158,6 +163,7 @@ function generalHelp(): string {
     `  ${BIN} post whatsapp --chat "My community - Announcements" "Hi all!"`,
     `  ${BIN} read linkedin --limit 5`,
     `  ${BIN} groups whatsapp`,
+    `  ${BIN} ai "écris dans le groupe IDEAL CRM que la réu est demain à 9h"`,
     `  ${BIN} status linkedin`,
   ].join("\n");
 }
@@ -215,6 +221,23 @@ function commandHelp(cmd: string): string {
         `Examples:`,
         `  ${BIN} groups whatsapp`,
         `  ${BIN} groups whatsapp --json`,
+      ].join("\n");
+    case "ai":
+      return [
+        `Usage: ${BIN} ai [--yes] [--show] "your instruction"`,
+        "",
+        "Drive WhatsApp in natural language via an LLM (EXPERIMENTAL). It",
+        "composes the message, resolves a fuzzy group name from your group list,",
+        "and sends — after a y/N confirmation showing the exact target + text.",
+        "",
+        "Backend: OpenAI by default, Anthropic if AI_PROVIDER=anthropic or only",
+        "ANTHROPIC_API_KEY is set. Needs OPENAI_API_KEY or ANTHROPIC_API_KEY",
+        `(e.g. in .env). WhatsApp session must exist (run \`${BIN} login whatsapp\`).`,
+        "",
+        "Options: -y/--yes (skip confirmation), -s/--show",
+        "",
+        `Example:`,
+        `  ${BIN} ai "écris dans le groupe IDEAL CRM que la réu est demain à 9h"`,
       ].join("\n");
     case "status":
       return [
@@ -321,6 +344,22 @@ async function main(): Promise<void> {
         else groups.forEach((g, i) => console.log(`${i + 1}. ${g}`));
       } finally {
         await fb.close();
+      }
+      break;
+    }
+
+    case "ai": {
+      const instruction = args.positionals.join(" ").trim();
+      if (!instruction) {
+        console.error(`Usage: ${BIN} ai "write in group X to say Y tomorrow at 9am"`);
+        process.exit(1);
+      }
+      // AI layer is WhatsApp-only for now.
+      const wa = makeConnector("whatsapp", { show: args.show });
+      try {
+        await runAi({ connector: wa, instruction, autoSend: args.yes });
+      } finally {
+        await wa.close();
       }
       break;
     }
