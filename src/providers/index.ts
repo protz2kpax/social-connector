@@ -4,7 +4,7 @@ import { facebook } from "./facebook.js";
 import { whatsapp } from "./whatsapp.js";
 import { linkedin } from "./linkedin.js";
 
-/** Registre des providers supportes. */
+/** Registry of supported providers. */
 export const PROVIDERS: Record<ProviderId, SocialProvider> = {
   facebook,
   whatsapp,
@@ -15,7 +15,7 @@ export function getProvider(id: string): SocialProvider {
   const p = (PROVIDERS as Record<string, SocialProvider>)[id];
   if (!p) {
     throw new UnknownProviderError(
-      `Provider inconnu: "${id}". Disponibles: ${Object.keys(PROVIDERS).join(", ")}.`,
+      `Unknown provider: "${id}". Available: ${Object.keys(PROVIDERS).join(", ")}.`,
     );
   }
   return p;

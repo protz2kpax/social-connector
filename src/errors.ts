@@ -1,6 +1,6 @@
 /**
- * Erreurs typees de la librairie. Permet au consommateur de distinguer
- * un probleme d'auth, un checkpoint, un selecteur casse, etc.
+ * Typed library errors. Lets the consumer distinguish an auth problem,
+ * a checkpoint, a broken selector, etc.
  */
 
 export class SocialConnectorError extends Error {
@@ -10,17 +10,17 @@ export class SocialConnectorError extends Error {
   }
 }
 
-/** Session invalide / expiree et pas de reconnexion possible. */
+/** Session invalid / expired and no reconnection possible. */
 export class NotLoggedInError extends SocialConnectorError {}
 
-/** Le provider demande une verification (captcha, 2FA, QR non scanne...). */
+/** The provider requires a verification (captcha, 2FA, QR not scanned...). */
 export class CheckpointError extends SocialConnectorError {}
 
-/** Un selecteur attendu est introuvable — l'UI du provider a probablement change. */
+/** An expected selector is missing — the provider UI has probably changed. */
 export class SelectorError extends SocialConnectorError {}
 
-/** La publication / l'envoi n'a pas pu etre confirme. */
+/** The post / send could not be confirmed. */
 export class PostFailedError extends SocialConnectorError {}
 
-/** Provider inconnu / non supporte. */
+/** Unknown / unsupported provider. */
 export class UnknownProviderError extends SocialConnectorError {}

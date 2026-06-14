@@ -3,9 +3,9 @@ import { PostFailedError } from "../errors.js";
 import type { SocialProvider } from "../types.js";
 
 /**
- * LinkedIn — publie un texte sur le feed.
- * Selecteurs FR + EN, tolerants. NON verifies sans login reel : a patcher au
- * premier SelectorError.
+ * LinkedIn — posts text to the feed.
+ * FR + EN selectors, tolerant. NOT verified without a real login: patch at
+ * the first SelectorError.
  */
 
 const COMPOSER_TRIGGER = [
@@ -31,7 +31,7 @@ const PUBLISH_BUTTON = [
 export const linkedin: SocialProvider = {
   id: "linkedin",
   label: "LinkedIn",
-  defaultStatePath: "./li-state.json",
+  defaultUserDataDir: "./.li-profile",
   auth: {
     homeUrl: "https://www.linkedin.com/feed/",
     loginUrl: "https://www.linkedin.com/login",
@@ -57,32 +57,32 @@ export const linkedin: SocialProvider = {
   },
 
   async post({ page, content, options, log }) {
-    log.step("Chargement du feed LinkedIn...");
+    log.step("Loading the LinkedIn feed...");
     await page.goto("https://www.linkedin.com/feed/", { waitUntil: "domcontentloaded" });
 
-    log.step("Ouverture du composer (Commencer un post)...");
-    const trigger = await requireVisible(page, COMPOSER_TRIGGER, "composer LinkedIn", 12000);
+    log.step("Opening the composer (Start a post)...");
+    const trigger = await requireVisible(page, COMPOSER_TRIGGER, "LinkedIn composer", 12000);
     await trigger.click();
-    const input = await requireVisible(page, COMPOSER_INPUT, "editeur LinkedIn", 10000);
+    const input = await requireVisible(page, COMPOSER_INPUT, "LinkedIn editor", 10000);
 
-    log.step("Saisie du texte...");
+    log.step("Typing the text...");
     await input.click();
     await input.type(content, { delay: 15 });
 
     if (options.screenshotPath) {
       await page.screenshot({ path: options.screenshotPath }).catch(() => {});
-      log.info(`Capture : ${options.screenshotPath}`);
+      log.info(`Screenshot: ${options.screenshotPath}`);
     }
 
-    log.step("Clic sur Publier...");
-    const publish = await requireVisible(page, PUBLISH_BUTTON, "bouton Publier LinkedIn");
+    log.step("Clicking Publish...");
+    const publish = await requireVisible(page, PUBLISH_BUTTON, "LinkedIn Publish button");
     await publish.click();
 
     if (!(await waitGone(page, PUBLISH_BUTTON, 20000))) {
       throw new PostFailedError(
-        "Publication LinkedIn non confirmee (modale restee ouverte).",
+        "LinkedIn post not confirmed (modal stayed open).",
       );
     }
-    log.step("Publication confirmee.");
+    log.step("Post confirmed.");
   },
 };

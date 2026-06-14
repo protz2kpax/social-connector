@@ -4,33 +4,38 @@ import type { Logger } from "./logger.js";
 export type ProviderId = "facebook" | "whatsapp" | "linkedin";
 
 /**
- * Config d'authentification d'un provider. L'auth est toujours manuelle :
- * on a juste besoin de savoir ou aller et comment reconnaitre l'etat loggue.
+ * Authentication config for a provider. Auth is always manual: we just
+ * need to know where to go and how to recognize the logged-in state.
  */
 export interface ProviderAuthConfig {
-  /** Page d'accueil (etat connecte attendu). */
+  /** Home page (logged-in state expected). */
   homeUrl: string;
-  /** Page de connexion (ou QR pour WhatsApp). */
+  /** Login page (or QR for WhatsApp). */
   loginUrl: string;
-  /** Selecteurs presents UNIQUEMENT si connecte. */
+  /** Selectors present ONLY when logged in. */
   loggedInMarkers: readonly string[];
-  /** Selecteurs presents UNIQUEMENT si deconnecte. */
+  /** Selectors present ONLY when logged out. */
   loggedOutMarkers: readonly string[];
-  /** Bouton d'acceptation des cookies, si le provider en affiche un. */
+  /**
+   * Max wait (ms) for loggedInMarkers when probing session validity.
+   * Bump for slow-loading providers (e.g. WhatsApp Web). Default: 5000.
+   */
+  loggedInTimeoutMs?: number;
+  /** Cookie accept button, if the provider shows one. */
   cookieAccept?: readonly string[];
 }
 
 export interface PostOptions {
   /**
-   * Destinataire. Requis pour WhatsApp (numero international, ex "33612345678").
-   * Ignore par les providers qui publient sur un mur/feed (Facebook, LinkedIn).
+   * Recipient. Required for WhatsApp (international number, e.g. "33612345678").
+   * Ignored by providers that post to a wall/feed (Facebook, LinkedIn).
    */
   target?: string;
-  /** Capture d'ecran avant envoi/publication (chemin). Debug. */
+  /** Screenshot before send/post (path). Debug. */
   screenshotPath?: string;
 }
 
-/** Contexte passe a l'action post() d'un provider. */
+/** Context passed to a provider's post() action. */
 export interface PostContext {
   page: Page;
   content: string;
@@ -38,14 +43,14 @@ export interface PostContext {
   log: Logger;
 }
 
-/** Un provider = config d'auth + une action de publication specifique. */
+/** A provider = auth config + a specific posting action. */
 export interface SocialProvider {
   id: ProviderId;
-  /** Nom lisible (logs, CLI). */
+  /** Human-readable name (logs, CLI). */
   label: string;
-  /** Fichier de session par defaut. */
-  defaultStatePath: string;
+  /** Default persistent profile directory. */
+  defaultUserDataDir: string;
   auth: ProviderAuthConfig;
-  /** Action de publication / envoi, propre au provider. */
+  /** Posting / sending action, specific to the provider. */
   post(ctx: PostContext): Promise<void>;
 }

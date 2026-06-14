@@ -2,10 +2,14 @@ node_modules/
 dist/
 *.log
 
-# Secrets & session — NE JAMAIS committer
+# Secrets & session — NEVER commit
 .env
 *-state.json
 fb-state.json
 wa-state.json
 li-state.json
+# Persistent browser profiles (cookies, IndexedDB, cache)
+.fb-profile/
+.wa-profile/
+.li-profile/
 screenshots/

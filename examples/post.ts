@@ -1,11 +1,11 @@
 /**
- * Exemple multi-provider.
- *   npx tsx examples/post.ts facebook "Hello mur"
+ * Multi-provider example.
+ *   npx tsx examples/post.ts facebook "Hello wall"
  *   npx tsx examples/post.ts linkedin "Hello feed"
- *   npx tsx examples/post.ts whatsapp "Salut" 33612345678
+ *   npx tsx examples/post.ts whatsapp "Hi" 33612345678
  *
- * Connexion manuelle : si pas de session valide, une fenetre s'ouvre et tu te
- * connectes a la main (ou scan QR pour WhatsApp). La session est reutilisee.
+ * Manual login: if there is no valid session, a window opens and you log
+ * in by hand (or scan the QR for WhatsApp). The session is reused.
  */
 import { SocialConnector, type ProviderId } from "../src/index.js";
 
@@ -16,8 +16,8 @@ const fb = new SocialConnector(provider, { headless: false });
 
 try {
   await fb.login();
-  await fb.post(message ?? "Hello depuis social-connector !", { target });
-  console.log(`Publie sur ${provider}.`);
+  await fb.post(message ?? "Hello from social-connector!", { target });
+  console.log(`Posted on ${provider}.`);
 } finally {
   await fb.close();
 }

@@ -3,8 +3,8 @@ import { PostFailedError } from "../errors.js";
 import type { SocialProvider } from "../types.js";
 
 /**
- * Facebook — publie un texte sur le mur (fil d'accueil).
- * Selecteurs FR + EN, tolerants. POINT FRAGILE : a patcher si l'UI change.
+ * Facebook — posts text to the wall (home feed).
+ * FR + EN selectors, tolerant. FRAGILE SPOT: patch if the UI changes.
  */
 
 const COMPOSER_TRIGGER = [
@@ -31,7 +31,7 @@ const PUBLISH_BUTTON = [
 export const facebook: SocialProvider = {
   id: "facebook",
   label: "Facebook",
-  defaultStatePath: "./fb-state.json",
+  defaultUserDataDir: "./.fb-profile",
   auth: {
     homeUrl: "https://www.facebook.com/",
     loginUrl: "https://www.facebook.com/login.php",
@@ -55,32 +55,32 @@ export const facebook: SocialProvider = {
   },
 
   async post({ page, content, options, log }) {
-    log.step("Chargement du fil d'accueil...");
+    log.step("Loading the home feed...");
     await page.goto("https://www.facebook.com/", { waitUntil: "domcontentloaded" });
 
-    log.step("Ouverture du composer (Quoi de neuf ?)...");
-    const trigger = await requireVisible(page, COMPOSER_TRIGGER, "composer Facebook", 12000);
+    log.step("Opening the composer (What's on your mind?)...");
+    const trigger = await requireVisible(page, COMPOSER_TRIGGER, "Facebook composer", 12000);
     await trigger.click();
-    const input = await requireVisible(page, COMPOSER_INPUT, "modale composer", 10000);
+    const input = await requireVisible(page, COMPOSER_INPUT, "composer modal", 10000);
 
-    log.step("Saisie du texte...");
+    log.step("Typing the text...");
     await input.click();
     await input.type(content, { delay: 15 });
 
     if (options.screenshotPath) {
       await page.screenshot({ path: options.screenshotPath }).catch(() => {});
-      log.info(`Capture : ${options.screenshotPath}`);
+      log.info(`Screenshot: ${options.screenshotPath}`);
     }
 
-    log.step("Clic sur Publier...");
-    const publish = await requireVisible(page, PUBLISH_BUTTON, "bouton Publier");
+    log.step("Clicking Publish...");
+    const publish = await requireVisible(page, PUBLISH_BUTTON, "Publish button");
     await publish.click();
 
     if (!(await waitGone(page, PUBLISH_BUTTON, 20000))) {
       throw new PostFailedError(
-        "Publication Facebook non confirmee (modale restee ouverte).",
+        "Facebook post not confirmed (modal stayed open).",
       );
     }
-    log.step("Publication confirmee.");
+    log.step("Post confirmed.");
   },
 };

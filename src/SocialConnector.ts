@@ -6,31 +6,30 @@ import { NotLoggedInError } from "./errors.js";
 import type { PostOptions, ProviderId, SocialProvider } from "./types.js";
 
 export interface SocialConnectorOptions {
-  /** Chemin du fichier de session. Defaut: celui du provider (ex ./fb-state.json). */
-  statePath?: string;
-  /** Navigateur sans interface. Defaut: false (visible). */
+  /** Persistent profile directory. Default: the provider's (e.g. ./.fb-profile). */
+  userDataDir?: string;
+  /** Headless browser. Default: true (hidden). Set false to show Chromium. */
   headless?: boolean;
-  /** Ralentit les actions (ms) pour debug visuel. */
+  /** Slows down actions (ms) for visual debugging. */
   slowMo?: number;
-  /** Locale du navigateur. Defaut: fr-FR. */
+  /** Browser locale. Default: fr-FR. */
   locale?: string;
-  /** Logs de progression (etapes + temps). Defaut: true. */
+  /** Progress logs (steps + timing). Default: true. */
   verbose?: boolean;
 }
 
 /**
- * Facade publique multi-provider.
+ * Public multi-provider facade.
  *
  *   const fb = new SocialConnector("facebook");
- *   await fb.login();                       // login MANUEL (fenetre), 1 fois
- *   await fb.post("Hello mur !");
+ *   await fb.login();                       // MANUAL login (window), once
+ *   await fb.post("Hello wall!");
  *
  *   const wa = new SocialConnector("whatsapp");
- *   await wa.login();                       // scan du QR
- *   await wa.post("Salut !", { target: "33612345678" });
+ *   await wa.login();                       // scan the QR
+ *   await wa.post("Hi!", { target: "33612345678" });
  *
- * La connexion est toujours manuelle. La session est sauvee par provider et
- * reutilisee.
+ * Login is always manual. The session is saved per provider and reused.
  */
 export class SocialConnector {
   private readonly provider: SocialProvider;
@@ -45,8 +44,8 @@ export class SocialConnector {
     this.provider = typeof provider === "string" ? getProvider(provider) : provider;
     const logger = createLogger(opts.verbose ?? true);
     this.session = new BrowserSession({
-      statePath: opts.statePath ?? this.provider.defaultStatePath,
-      headless: opts.headless ?? false,
+      userDataDir: opts.userDataDir ?? this.provider.defaultUserDataDir,
+      headless: opts.headless ?? true,
       slowMo: opts.slowMo,
       locale: opts.locale,
       logger,
@@ -54,40 +53,40 @@ export class SocialConnector {
     this.auth = new AuthManager(this.session, this.provider.auth);
   }
 
-  /** Provider actif. */
+  /** Active provider. */
   get providerId(): ProviderId {
     return this.provider.id;
   }
 
-  /** Demarre le navigateur (idempotent). */
+  /** Starts the browser (idempotent). */
   async start(): Promise<void> {
     if (this.started) return;
     await this.session.start();
     this.started = true;
   }
 
-  /** Connexion MANUELLE : reutilise la session sauvee, sinon attend le login a la main. */
+  /** MANUAL login: reuses the saved session, otherwise waits for the manual login. */
   async login(opts?: ManualLoginOptions): Promise<void> {
     await this.start();
     await this.auth.waitForManualLogin(opts);
   }
 
-  /** True si une session sauvee est valide. */
+  /** True if a saved session is valid. */
   async isLoggedIn(): Promise<boolean> {
     await this.start();
     return this.auth.isLoggedIn();
   }
 
   /**
-   * Publie / envoie un message. Le sens depend du provider :
-   * Facebook -> mur, LinkedIn -> feed, WhatsApp -> message a options.target.
+   * Posts / sends a message. The meaning depends on the provider:
+   * Facebook -> wall, LinkedIn -> feed, WhatsApp -> message to options.target.
    */
   async post(content: string, options: PostOptions = {}): Promise<void> {
     await this.start();
-    if (!content.trim()) throw new Error("Contenu vide.");
+    if (!content.trim()) throw new Error("Empty content.");
     if (!(await this.auth.isLoggedIn())) {
       throw new NotLoggedInError(
-        `Pas de session valide pour ${this.provider.label}. Lance d'abord login().`,
+        `No valid session for ${this.provider.label}. Run login() first.`,
       );
     }
     await this.provider.post({
@@ -98,7 +97,7 @@ export class SocialConnector {
     });
   }
 
-  /** Ferme le navigateur. */
+  /** Closes the browser. */
   async close(): Promise<void> {
     await this.session.close();
     this.started = false;

@@ -1,16 +1,16 @@
 # social-connector
 
-Librairie TypeScript **multi-provider** (Facebook, WhatsApp, LinkedIn) pour publier/envoyer un message via un navigateur automatisé ([Playwright](https://playwright.dev)).
+**Multi-provider** TypeScript library (Facebook, WhatsApp, LinkedIn) to post/send a message via an automated browser ([Playwright](https://playwright.dev)).
 
-Même principe pour tous les providers : la connexion est **manuelle** (ils bloquent le login automatisé). Une fenêtre s'ouvre, tu te connectes toi-même **une seule fois** (ou scan du QR pour WhatsApp), puis la session (cookies) est sauvegardée **par provider** et réutilisée.
+Same principle for all providers: login is **manual** (they block automated login). A window opens, you log in yourself **once** (or scan the QR for WhatsApp), then the session (cookies) is saved **per provider** and reused.
 
-| Provider | Action `post()` | `target` requis |
+| Provider | `post()` action | `target` required |
 |---|---|---|
-| `facebook` | Publie sur le mur | non |
-| `linkedin` | Publie sur le feed | non |
-| `whatsapp` | Envoie un message à un contact | **oui** (numéro international) |
+| `facebook` | Posts to the wall | no |
+| `linkedin` | Posts to the feed | no |
+| `whatsapp` | Sends a message to a contact | **yes** (international number) |
 
-> ⚠️ Automatiser ces plateformes **viole leurs Conditions d'utilisation**. Risque : captcha/2FA, blocage, bannissement. À n'utiliser que sur **tes propres comptes**, à tes risques. Aucune vérification n'est contournée.
+> ⚠️ Automating these platforms **violates their Terms of Service**. Risk: captcha/2FA, blocking, ban. Use only on **your own accounts**, at your own risk. No verification is bypassed.
 
 ## Installation
 
@@ -19,91 +19,94 @@ npm install
 npx playwright install chromium
 ```
 
-## Utilisation — CLI
+## Usage — CLI
 
 ```bash
-# 1) Connexion MANUELLE (une fois par provider). Fenêtre forcée visible.
+# 1) MANUAL login (once per provider). Window forced visible.
 npm run login:fb          # Facebook  (= login --provider facebook)
-npm run login:wa          # WhatsApp  (scan du QR)
+npm run login:wa          # WhatsApp  (scan the QR)
 npm run login:li          # LinkedIn
 
-# 2) Publier / envoyer (réutilise la session)
-npm run post -- facebook "Hello mon mur"
-npm run post -- linkedin "Hello mon feed"
-npm run post -- whatsapp --to 33612345678 "Salut !"
+# 2) Post / send (reuses the session). Chromium hidden by default.
+npm run post -- facebook "Hello my wall"
+npm run post -- linkedin "Hello my feed"
+npm run post -- whatsapp --to 33612345678 "Hi!"
 
-# État de session
+# Show Chromium for a run (debug): --show / --headed / -s
+npm run post -- whatsapp --to 33612345678 "Hi!" --show
+
+# Session status
 npm run status -- facebook
 ```
 
-> `npm run post -- <provider> ...` passe `--provider <provider>` à la CLI.
-> Forme directe : `npx tsx src/cli.ts post --provider whatsapp --to 33612345678 "Salut"`.
+> `npm run post -- <provider> ...` passes `--provider <provider>` to the CLI.
+> Direct form: `npx tsx src/cli.ts post --provider whatsapp --to 33612345678 "Hi"`.
 
-## Utilisation — API
+## Usage — API
 
 ```typescript
 import { SocialConnector } from "social-connector";
 
-// Facebook (mur)
+// Facebook (wall)
 const fb = new SocialConnector("facebook");
 try {
-  await fb.login();                       // manuel si pas de session
+  await fb.login();                       // manual if no session
   await fb.post("Hello world 👋");
 } finally {
   await fb.close();
 }
 
-// WhatsApp (message à un contact)
+// WhatsApp (message to a contact)
 const wa = new SocialConnector("whatsapp");
 try {
-  await wa.login();                       // scan du QR
-  await wa.post("Salut !", { target: "33612345678" });
+  await wa.login();                       // scan the QR
+  await wa.post("Hi!", { target: "33612345678" });
 } finally {
   await wa.close();
 }
 ```
 
-### API publique
+### Public API
 
-| Méthode | Description |
+| Method | Description |
 |---|---|
-| `new SocialConnector(providerId, opts?)` | `providerId`: `facebook`\|`whatsapp`\|`linkedin`. `opts`: `statePath`, `headless`, `slowMo`, `locale`, `verbose` |
-| `login(opts?)` | Connexion **manuelle**. Réutilise la session si valide. `opts.timeoutMs` |
-| `isLoggedIn()` | `true` si une session sauvée est valide |
-| `post(content, options?)` | Publie/envoie. `options.target` (WhatsApp), `options.screenshotPath` |
-| `close()` | Ferme le navigateur |
+| `new SocialConnector(providerId, opts?)` | `providerId`: `facebook`\|`whatsapp`\|`linkedin`. `opts`: `userDataDir`, `headless` (default `true` = hidden), `slowMo`, `locale`, `verbose` |
+| `login(opts?)` | **Manual** login. Reuses the session if valid. `opts.timeoutMs` |
+| `isLoggedIn()` | `true` if a saved session is valid |
+| `post(content, options?)` | Posts/sends. `options.target` (WhatsApp), `options.screenshotPath` |
+| `close()` | Closes the browser |
 
-### Erreurs typées
+### Typed errors
 
-`NotLoggedInError`, `CheckpointError`, `SelectorError`, `PostFailedError`, `UnknownProviderError` — dérivent de `SocialConnectorError`.
+`NotLoggedInError`, `CheckpointError`, `SelectorError`, `PostFailedError`, `UnknownProviderError` — derive from `SocialConnectorError`.
 
 ## Architecture
 
 ```
-SocialConnector (façade, choisit le provider)
-├── BrowserSession   → cycle de vie Playwright + persistance storageState (par provider)
-├── AuthManager      → détection session + attente du login manuel (piloté par ProviderAuthConfig)
-└── provider.post()  → action propre au provider
+SocialConnector (facade, picks the provider)
+├── BrowserSession   → Playwright lifecycle + persistent profile (cookies/IndexedDB/cache, per provider)
+├── AuthManager      → session detection + waiting for manual login (driven by ProviderAuthConfig)
+└── provider.post()  → provider-specific action
 providers/
-  facebook.ts        → mur    | whatsapp.ts → message contact | linkedin.ts → feed
-  index.ts           → registre { facebook, whatsapp, linkedin }
+  facebook.ts        → wall   | whatsapp.ts → contact message | linkedin.ts → feed
+  index.ts           → registry { facebook, whatsapp, linkedin }
 types.ts             → SocialProvider, ProviderAuthConfig, PostOptions, PostContext
-dom.ts               → helpers tolérants (firstVisible parcourt TOUS les matches)
+dom.ts               → tolerant helpers (firstVisible walks ALL matches)
 ```
 
-### Ajouter un provider
+### Adding a provider
 
-Créer `src/providers/<nom>.ts` exportant un `SocialProvider` (`auth` + `post`), puis l'enregistrer dans `src/providers/index.ts`. Rien d'autre à toucher.
+Create `src/providers/<name>.ts` exporting a `SocialProvider` (`auth` + `post`), then register it in `src/providers/index.ts`. Nothing else to touch.
 
-## Limites & maintenance
+## Limits & maintenance
 
-- **Sélecteurs fragiles** : chaque provider change son DOM. Un `SelectorError` liste les sélecteurs essayés → patche le fichier du provider concerné.
-- **Non vérifiés sans login réel** : sélecteurs `post` de WhatsApp/LinkedIn et markers logged-out de LinkedIn. À ajuster au premier vrai login.
-- **WhatsApp** : `target` = numéro international sans `+` ni espaces (ex `33612345678`).
+- **Fragile selectors**: each provider changes its DOM. A `SelectorError` lists the selectors tried → patch the relevant provider file.
+- **Not verified without a real login**: WhatsApp/LinkedIn `post` selectors and LinkedIn logged-out markers. Adjust at the first real login.
+- **WhatsApp**: `target` = international number without `+` or spaces (e.g. `33612345678`).
 
 ## Scripts
 
 ```bash
 npm run build       # compile TS -> dist/
-npm run typecheck   # types sans émettre
+npm run typecheck   # types without emitting
 ```

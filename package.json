@@ -1,7 +1,7 @@
 {
   "name": "social-connector",
   "version": "0.2.0",
-  "description": "Librairie TypeScript multi-provider (Facebook, WhatsApp, LinkedIn) : login manuel via navigateur automatise (Playwright), session reutilisee, publication/envoi de messages.",
+  "description": "Multi-provider TypeScript library (Facebook, WhatsApp, LinkedIn): manual login via automated browser (Playwright), reused session, posting/sending messages.",
   "type": "module",
   "main": "dist/index.js",
   "module": "dist/index.js",

@@ -1,11 +1,11 @@
 /**
- * Logger minimal avec temps ecoule depuis le demarrage. Permet de suivre la
- * progression d'un flux lent (login, publication) etape par etape.
+ * Minimal logger with elapsed time since startup. Lets you follow the
+ * progress of a slow flow (login, post) step by step.
  */
 export interface Logger {
-  /** Etape principale du flux. */
+  /** Main step of the flow. */
   step(msg: string): void;
-  /** Detail / sous-etape. */
+  /** Detail / sub-step. */
   info(msg: string): void;
 }
 
@@ -21,5 +21,5 @@ export function createLogger(enabled: boolean): Logger {
   };
 }
 
-/** Logger silencieux (defaut pour usage librairie sans verbosite). */
+/** Silent logger (default for library use without verbosity). */
 export const NOOP_LOGGER: Logger = { step: () => {}, info: () => {} };

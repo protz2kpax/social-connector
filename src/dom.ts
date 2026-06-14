@@ -2,26 +2,26 @@ import type { Page, Locator } from "playwright";
 import { SelectorError } from "./errors.js";
 
 /**
- * Helpers DOM tolerants : on essaie une LISTE de selecteurs candidats et on
- * prend le premier qui matche un element visible. Absorbe les variations de
- * langue / DOM de Facebook (voir selectors.ts).
+ * Tolerant DOM helpers: we try a LIST of candidate selectors and take the
+ * first one that matches a visible element. Absorbs language / DOM
+ * variations of Facebook (see selectors.ts).
  */
 
-/** Retourne le premier locator visible parmi les candidats, ou null. */
+/** Returns the first visible locator among the candidates, or null. */
 export async function firstVisible(
   page: Page,
   selectors: readonly string[],
   timeoutMs = 8000,
 ): Promise<Locator | null> {
   const deadline = Date.now() + timeoutMs;
-  // Petit polling : Facebook hydrate son DOM en plusieurs temps.
+  // Small polling loop: Facebook hydrates its DOM in several passes.
   while (Date.now() < deadline) {
     for (const sel of selectors) {
       try {
-        // Un meme selecteur peut matcher plusieurs noeuds dont certains
-        // caches (FB duplique souvent ses elements). On parcourt TOUS les
-        // matches et on retourne le premier reellement visible — pas juste
-        // .first(), qui peut tomber sur un noeud cache.
+        // A single selector may match several nodes, some of them hidden
+        // (FB often duplicates its elements). We walk through ALL matches
+        // and return the first that is actually visible — not just
+        // .first(), which may land on a hidden node.
         const loc = page.locator(sel);
         const count = await loc.count();
         for (let i = 0; i < count; i++) {
@@ -29,7 +29,7 @@ export async function firstVisible(
           if (await nth.isVisible()) return nth;
         }
       } catch {
-        // selecteur invalide pour cette page — on continue
+        // invalid selector for this page — keep going
       }
     }
     await page.waitForTimeout(250);
@@ -37,7 +37,7 @@ export async function firstVisible(
   return null;
 }
 
-/** Comme firstVisible mais leve SelectorError si rien trouve. */
+/** Like firstVisible but throws SelectorError if nothing found. */
 export async function requireVisible(
   page: Page,
   selectors: readonly string[],
@@ -47,15 +47,15 @@ export async function requireVisible(
   const loc = await firstVisible(page, selectors, timeoutMs);
   if (!loc) {
     throw new SelectorError(
-      `Element introuvable: "${label}". Selecteurs essayes:\n  - ${selectors.join(
+      `Element not found: "${label}". Selectors tried:\n  - ${selectors.join(
         "\n  - ",
-      )}\nL'UI Facebook a probablement change — mets a jour src/selectors.ts.`,
+      )}\nThe Facebook UI has probably changed — update src/selectors.ts.`,
     );
   }
   return loc;
 }
 
-/** Vrai si au moins un des selecteurs est present (visible) rapidement. */
+/** True if at least one of the selectors is present (visible) quickly. */
 export async function anyVisible(
   page: Page,
   selectors: readonly string[],
@@ -64,7 +64,7 @@ export async function anyVisible(
   return (await firstVisible(page, selectors, timeoutMs)) !== null;
 }
 
-/** Attend que plus aucun des selecteurs ne soit visible (ex: modale fermee). */
+/** Waits until none of the selectors are visible anymore (e.g. modal closed). */
 export async function waitGone(
   page: Page,
   selectors: readonly string[],

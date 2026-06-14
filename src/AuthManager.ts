@@ -6,15 +6,15 @@ import { anyVisible, firstVisible } from "./dom.js";
 import { NotLoggedInError } from "./errors.js";
 
 export interface ManualLoginOptions {
-  /** Delai max d'attente de la connexion manuelle (ms). Defaut: 5 min. */
+  /** Max wait time for the manual login (ms). Default: 5 min. */
   timeoutMs?: number;
 }
 
 /**
- * Gere l'etat d'authentification, pilote par la config d'un provider.
+ * Manages the authentication state, driven by a provider's config.
  *
- * La connexion se fait UNIQUEMENT a la main (saisie auto detectee/bloquee par
- * les providers). La session (cookies) est ensuite sauvee et reutilisee.
+ * Login is done ONLY by hand (auto-typing is detected/blocked by the
+ * providers). The session (cookies) is then saved and reused.
  */
 export class AuthManager {
   private readonly log: Logger;
@@ -25,62 +25,63 @@ export class AuthManager {
     this.log = session.logger;
   }
 
-  /** Navigue vers l'accueil et detecte si la session est deja valide. */
+  /** Navigates to the home page and detects whether the session is already valid. */
   async isLoggedIn(): Promise<boolean> {
     const page = this.session.page;
-    this.log.step("Verification de la session...");
+    this.log.step("Checking session...");
     await page.goto(this.cfg.homeUrl, { waitUntil: "domcontentloaded" });
     await this.dismissCookieBanner(page);
 
-    if (await anyVisible(page, this.cfg.loggedInMarkers, 5000)) {
-      this.log.info("Session valide : deja connecte.");
+    const loggedInTimeout = this.cfg.loggedInTimeoutMs ?? 5000;
+    if (await anyVisible(page, this.cfg.loggedInMarkers, loggedInTimeout)) {
+      this.log.info("Valid session: already logged in.");
       return true;
     }
     if (await anyVisible(page, this.cfg.loggedOutMarkers, 2000)) {
-      this.log.info("Non connecte.");
+      this.log.info("Not logged in.");
       return false;
     }
     const ok = await anyVisible(page, this.cfg.loggedInMarkers, 3000);
-    this.log.info(ok ? "Session valide." : "Etat ambigu -> considere non connecte.");
+    this.log.info(ok ? "Valid session." : "Ambiguous state -> assumed not logged in.");
     return ok;
   }
 
   /**
-   * Login 100% MANUEL : ouvre la page de connexion (ou le QR) et attend que
-   * l'utilisateur se connecte lui-meme dans la fenetre, puis sauve la session.
+   * 100% MANUAL login: opens the login page (or the QR) and waits for the
+   * user to log in themselves in the window, then saves the session.
    */
   async waitForManualLogin(opts: ManualLoginOptions = {}): Promise<void> {
     const timeoutMs = opts.timeoutMs ?? 300_000;
 
     if (await this.isLoggedIn()) {
-      this.log.step("Deja connecte — rien a faire.");
+      this.log.step("Already logged in — nothing to do.");
       return;
     }
 
     const page = this.session.page;
-    this.log.step("Ouverture de la page de connexion...");
+    this.log.step("Opening the login page...");
     await page.goto(this.cfg.loginUrl, { waitUntil: "domcontentloaded" });
     await this.dismissCookieBanner(page);
 
     process.stdout.write(
       "\n========================================================\n" +
-        ">>> CONNECTE-TOI MANUELLEMENT dans la fenetre.\n" +
-        ">>> (identifiants + 2FA, ou scan du QR pour WhatsApp)\n" +
-        `>>> J'attends jusqu'a ${Math.round(timeoutMs / 1000)}s...\n` +
+        ">>> LOG IN MANUALLY in the window.\n" +
+        ">>> (credentials + 2FA, or scan the QR for WhatsApp)\n" +
+        `>>> Waiting up to ${Math.round(timeoutMs / 1000)}s...\n` +
         "========================================================\n",
     );
 
     const deadline = Date.now() + timeoutMs;
     while (Date.now() < deadline) {
       if (await firstVisible(page, this.cfg.loggedInMarkers, 1000)) {
-        this.log.step("Connexion detectee — sauvegarde de la session.");
+        this.log.step("Login detected — saving the session.");
         await this.session.saveState();
         return;
       }
       await page.waitForTimeout(1500);
     }
     throw new NotLoggedInError(
-      "Login manuel non termine dans le delai imparti. Relance et connecte-toi.",
+      "Manual login not completed within the allotted time. Re-run and log in.",
     );
   }
 
@@ -88,7 +89,7 @@ export class AuthManager {
     if (!this.cfg.cookieAccept?.length) return;
     const btn = await firstVisible(page, this.cfg.cookieAccept, 4000);
     if (!btn) return;
-    this.log.info("Bandeau cookies detecte -> acceptation.");
+    this.log.info("Cookie banner detected -> accepting.");
     await btn.click().catch(() => {});
     const deadline = Date.now() + 5000;
     while (Date.now() < deadline) {
