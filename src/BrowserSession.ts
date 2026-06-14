@@ -2,6 +2,7 @@ import { chromium, type Browser, type BrowserContext, type Page } from "playwrig
 import { existsSync } from "node:fs";
 import { mkdir, readFile } from "node:fs/promises";
 import { dirname } from "node:path";
+import { NOOP_LOGGER, type Logger } from "./logger.js";
 
 export interface BrowserSessionOptions {
   /** Chemin du fichier storageState (cookies + localStorage). */
@@ -12,6 +13,8 @@ export interface BrowserSessionOptions {
   slowMo?: number;
   /** Locale du navigateur. Defaut: fr-FR. */
   locale?: string;
+  /** Logger de progression. Defaut: silencieux. */
+  logger?: Logger;
 }
 
 /**
@@ -24,8 +27,11 @@ export class BrowserSession {
   private browser?: Browser;
   private context?: BrowserContext;
   private pageInstance?: Page;
+  private readonly log: Logger;
 
-  constructor(private readonly opts: BrowserSessionOptions) {}
+  constructor(private readonly opts: BrowserSessionOptions) {
+    this.log = opts.logger ?? NOOP_LOGGER;
+  }
 
   /** True si un fichier de session existe deja sur disque. */
   hasSavedState(): boolean {
@@ -36,6 +42,9 @@ export class BrowserSession {
   async start(): Promise<Page> {
     if (this.pageInstance) return this.pageInstance;
 
+    this.log.step(
+      `Lancement du navigateur (headless=${this.opts.headless ?? false})...`,
+    );
     this.browser = await chromium.launch({
       headless: this.opts.headless ?? false,
       slowMo: this.opts.slowMo,
@@ -45,6 +54,11 @@ export class BrowserSession {
       this.hasSavedState() && (await this.readState()) !== null
         ? this.opts.statePath
         : undefined;
+    this.log.info(
+      storageState
+        ? `Session existante chargee depuis ${this.opts.statePath}`
+        : "Aucune session sauvegardee — navigateur vierge",
+    );
 
     this.context = await this.browser.newContext({
       storageState,
@@ -57,7 +71,12 @@ export class BrowserSession {
     });
 
     this.pageInstance = await this.context.newPage();
+    this.log.info("Navigateur pret.");
     return this.pageInstance;
+  }
+
+  get logger(): Logger {
+    return this.log;
   }
 
   get page(): Page {
@@ -72,6 +91,7 @@ export class BrowserSession {
     if (!this.context) return;
     await mkdir(dirname(this.opts.statePath), { recursive: true }).catch(() => {});
     await this.context.storageState({ path: this.opts.statePath });
+    this.log.info(`Session sauvegardee dans ${this.opts.statePath}`);
   }
 
   /** Lit le fichier d'etat, ou null s'il est absent / corrompu. */

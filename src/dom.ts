@@ -17,9 +17,17 @@ export async function firstVisible(
   // Petit polling : Facebook hydrate son DOM en plusieurs temps.
   while (Date.now() < deadline) {
     for (const sel of selectors) {
-      const loc = page.locator(sel).first();
       try {
-        if (await loc.isVisible()) return loc;
+        // Un meme selecteur peut matcher plusieurs noeuds dont certains
+        // caches (FB duplique souvent ses elements). On parcourt TOUS les
+        // matches et on retourne le premier reellement visible — pas juste
+        // .first(), qui peut tomber sur un noeud cache.
+        const loc = page.locator(sel);
+        const count = await loc.count();
+        for (let i = 0; i < count; i++) {
+          const nth = loc.nth(i);
+          if (await nth.isVisible()) return nth;
+        }
       } catch {
         // selecteur invalide pour cette page — on continue
       }

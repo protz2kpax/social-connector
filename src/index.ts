@@ -2,6 +2,7 @@ export { FacebookConnector } from "./FacebookConnector.js";
 export type { FacebookConnectorOptions } from "./FacebookConnector.js";
 export type { Credentials, LoginOptions } from "./AuthManager.js";
 export type { PostOptions } from "./WallPoster.js";
+export type { Logger } from "./logger.js";
 export {
   FacebookConnectorError,
   NotLoggedInError,

@@ -1,5 +1,6 @@
 import type { Page } from "playwright";
 import { BrowserSession } from "./BrowserSession.js";
+import type { Logger } from "./logger.js";
 import { firstVisible, requireVisible } from "./dom.js";
 import { PostFailedError } from "./errors.js";
 import {
@@ -21,15 +22,20 @@ export interface PostOptions {
  * clic "Publier" -> attente de fermeture de la modale (confirmation).
  */
 export class WallPoster {
-  constructor(private readonly session: BrowserSession) {}
+  private readonly log: Logger;
+  constructor(private readonly session: BrowserSession) {
+    this.log = session.logger;
+  }
 
   async post(text: string, opts: PostOptions = {}): Promise<void> {
     if (!text.trim()) throw new PostFailedError("Texte vide.");
 
     const page = this.session.page;
+    this.log.step("Chargement du fil d'accueil...");
     await page.goto(URLS.home, { waitUntil: "domcontentloaded" });
 
     await this.openComposer(page);
+    this.log.step("Saisie du texte...");
     const input = await requireVisible(page, COMPOSER_INPUT, "zone de texte du composer");
     await input.click();
     // type() simule une frappe reelle (plus naturel que fill()).
@@ -37,15 +43,19 @@ export class WallPoster {
 
     if (opts.screenshotPath) {
       await page.screenshot({ path: opts.screenshotPath }).catch(() => {});
+      this.log.info(`Capture d'ecran : ${opts.screenshotPath}`);
     }
 
+    this.log.step("Clic sur Publier...");
     const publish = await requireVisible(page, PUBLISH_BUTTON, "bouton Publier");
     await publish.click();
 
     await this.waitForPublished(page);
+    this.log.step("Publication confirmee.");
   }
 
   private async openComposer(page: Page): Promise<void> {
+    this.log.step("Ouverture du composer (Quoi de neuf ?)...");
     const trigger = await requireVisible(
       page,
       COMPOSER_TRIGGER,
@@ -55,6 +65,7 @@ export class WallPoster {
     await trigger.click();
     // La modale (role=dialog) doit apparaitre.
     await requireVisible(page, COMPOSER_INPUT, "modale composer ouverte", 10000);
+    this.log.info("Composer ouvert.");
   }
 
   /** La modale qui se ferme = publication acceptee. */

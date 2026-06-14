@@ -2,6 +2,7 @@ import { BrowserSession } from "./BrowserSession.js";
 import { AuthManager, type Credentials, type LoginOptions } from "./AuthManager.js";
 import { WallPoster, type PostOptions } from "./WallPoster.js";
 import { NotLoggedInError } from "./errors.js";
+import { createLogger } from "./logger.js";
 
 export interface FacebookConnectorOptions {
   /** Chemin du fichier de session sauvegardee. Defaut: ./fb-state.json */
@@ -12,6 +13,8 @@ export interface FacebookConnectorOptions {
   slowMo?: number;
   /** Locale du navigateur. Defaut: fr-FR. */
   locale?: string;
+  /** Affiche les logs de progression (etapes + temps). Defaut: true. */
+  verbose?: boolean;
 }
 
 /**
@@ -29,11 +32,13 @@ export class FacebookConnector {
   private started = false;
 
   constructor(opts: FacebookConnectorOptions = {}) {
+    const logger = createLogger(opts.verbose ?? true);
     this.session = new BrowserSession({
       statePath: opts.statePath ?? "./fb-state.json",
       headless: opts.headless ?? false,
       slowMo: opts.slowMo,
       locale: opts.locale,
+      logger,
     });
     this.auth = new AuthManager(this.session);
     this.poster = new WallPoster(this.session);

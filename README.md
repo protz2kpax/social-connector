@@ -65,7 +65,7 @@ try {
 
 | Méthode | Description |
 |---|---|
-| `new FacebookConnector(opts?)` | `statePath`, `headless`, `slowMo`, `locale` |
+| `new FacebookConnector(opts?)` | `statePath`, `headless`, `slowMo`, `locale`, `verbose` (logs de progression, défaut `true`) |
 | `login(creds, opts?)` | Connexion. Réutilise la session si valide ; gère un checkpoint manuel. |
 | `isLoggedIn()` | `true` si une session sauvée est valide. |
 | `postToWall(text, opts?)` | Publie `text` sur le mur. `opts.screenshotPath` pour debug. |
