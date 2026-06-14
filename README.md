@@ -71,6 +71,8 @@ social-connector status facebook
 > The provider can be the first argument (`post facebook "..."`), or `--provider facebook`, or the `PROVIDER` env var.
 > The `npm run login:fb` / `post` / `status` scripts still work for running without a global install.
 
+**Auto-login:** action commands (`post`, `read`, `groups`, `chats`, `conversation`, `ai`) open a visible login window automatically when no valid session exists, then continue once you've logged in. Pass `--no-login` to error out instead (useful for non-interactive scripts).
+
 ## Usage — API
 
 ```typescript

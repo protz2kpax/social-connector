@@ -49,6 +49,7 @@ interface Args {
   since?: string;
   cacheTtl?: number;
   unread?: boolean;
+  noLogin?: boolean;
   json?: boolean;
   yes?: boolean;
   positionals: string[];
@@ -67,6 +68,7 @@ function parseArgs(argv: string[]): Args {
     else if (a === "--since") out.since = argv[++i];
     else if (a === "--cache-ttl") out.cacheTtl = Number(argv[++i]);
     else if (a === "--unread") out.unread = true;
+    else if (a === "--no-login") out.noLogin = true;
     else if (a === "--json") out.json = true;
     else if (a === "--yes" || a === "-y") out.yes = true;
     else if (a === "--show" || a === "--headed" || a === "-s") out.show = true;
@@ -131,6 +133,22 @@ function makeConnector(
   });
 }
 
+/**
+ * Returns a connector with a valid session. Probes (hidden); if not logged in
+ * and auto-login is on, reopens a VISIBLE window, runs the manual login, then
+ * continues. Pass --no-login to keep the old "error out" behavior.
+ */
+async function prepareConnector(provider: ProviderId, args: Args): Promise<SocialConnector> {
+  let fb = makeConnector(provider, { show: args.show });
+  if (args.noLogin) return fb;
+  if (await fb.isLoggedIn()) return fb;
+  await fb.close();
+  console.error(`[..] No ${provider} session — opening a window to log in...`);
+  fb = makeConnector(provider, { forceVisible: true });
+  await fb.login(); // manual; waits for you, then saves the session
+  return fb;
+}
+
 function generalHelp(): string {
   return [
     `${pkg.name} v${pkg.version} — post/send on several networks (manual login).`,
@@ -160,6 +178,7 @@ function generalHelp(): string {
     "      --cache-ttl <s>   conversation: serve encrypted cache if fresher than N seconds",
     "      --json            read/groups/conversation: print as JSON instead of text",
     "  -y, --yes             ai: skip the confirmation prompt before sending",
+    "      --no-login        don't auto-open a login window when no session exists (error instead)",
     "  -s, --show, --headed  Show Chromium for this run (default: hidden). login is always visible.",
     "      --screenshot <p>  Save a screenshot before sending (debug)",
     "  -h, --help            Show help (use after a command for command help)",
@@ -327,14 +346,8 @@ async function main(): Promise<void> {
         console.error(`Usage: ${BIN} post [provider] [--to <num>] "your message"`);
         process.exit(1);
       }
-      const fb = makeConnector(provider, { show: args.show });
+      const fb = await prepareConnector(provider, args);
       try {
-        if (!(await fb.isLoggedIn())) {
-          console.error(
-            `[ERROR] No ${provider} session. Run first:  ${BIN} login ${provider}`,
-          );
-          process.exit(1);
-        }
         await fb.post(text, {
           target: args.to,
           chat: args.chat,
@@ -360,9 +373,8 @@ async function main(): Promise<void> {
 
     case "read": {
       const provider = takeProvider(args);
-      const fb = makeConnector(provider, { show: args.show });
+      const fb = await prepareConnector(provider, args);
       try {
-        // read() validates the session itself; no extra pre-check navigation.
         const posts = await fb.read({ limit: args.limit });
         if (args.json) console.log(JSON.stringify(posts, null, 2));
         else printPosts(posts);
@@ -373,7 +385,7 @@ async function main(): Promise<void> {
     }
 
     case "groups": {
-      const fb = makeConnector(takeProvider(args), { show: args.show });
+      const fb = await prepareConnector(takeProvider(args), args);
       try {
         const groups = await fb.listGroups({ limit: args.limit });
         if (args.json) console.log(JSON.stringify(groups, null, 2));
@@ -386,7 +398,7 @@ async function main(): Promise<void> {
     }
 
     case "chats": {
-      const fb = makeConnector("whatsapp", { show: args.show });
+      const fb = await prepareConnector("whatsapp", args);
       try {
         const chats = await fb.listRecentChats({ limit: args.limit, onlyUnread: args.unread });
         if (args.json) console.log(JSON.stringify(chats, null, 2));
@@ -409,7 +421,7 @@ async function main(): Promise<void> {
         console.error(`Usage: ${BIN} conversation --chat "name" [--limit N] [--since YYYY-MM-DD]`);
         process.exit(1);
       }
-      const fb = makeConnector("whatsapp", { show: args.show });
+      const fb = await prepareConnector("whatsapp", args);
       try {
         const msgs = await fb.readConversation({
           chat,
@@ -433,7 +445,7 @@ async function main(): Promise<void> {
         process.exit(1);
       }
       // AI layer is WhatsApp-only for now.
-      const wa = makeConnector("whatsapp", { show: args.show });
+      const wa = await prepareConnector("whatsapp", args);
       try {
         await runAi({ connector: wa, instruction, autoSend: args.yes });
       } finally {
