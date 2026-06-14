@@ -43,6 +43,28 @@ export interface PostContext {
   log: Logger;
 }
 
+/** One post authored by the logged-in user, as scraped from their profile. */
+export interface Post {
+  /** Text content of the post. */
+  text: string;
+  /** Permalink to the post, if found. */
+  url?: string;
+  /** Relative time/age as shown in the UI (e.g. "2d"), if found. */
+  time?: string;
+}
+
+export interface ReadOptions {
+  /** Max number of posts to return. Default: 10. */
+  limit?: number;
+}
+
+/** Context passed to a provider's readPosts() action. */
+export interface ReadContext {
+  page: Page;
+  options: ReadOptions;
+  log: Logger;
+}
+
 /** A provider = auth config + a specific posting action. */
 export interface SocialProvider {
   id: ProviderId;
@@ -53,4 +75,9 @@ export interface SocialProvider {
   auth: ProviderAuthConfig;
   /** Posting / sending action, specific to the provider. */
   post(ctx: PostContext): Promise<void>;
+  /**
+   * Reads the logged-in user's own posts. Optional: providers that have no
+   * concept of a post feed (e.g. WhatsApp) omit it.
+   */
+  readPosts?(ctx: ReadContext): Promise<Post[]>;
 }

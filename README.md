@@ -4,11 +4,11 @@
 
 Same principle for all providers: login is **manual** (they block automated login). A window opens, you log in yourself **once** (or scan the QR for WhatsApp), then the session (cookies) is saved **per provider** and reused.
 
-| Provider | `post()` action | `target` required |
-|---|---|---|
-| `facebook` | Posts to the wall | no |
-| `linkedin` | Posts to the feed | no |
-| `whatsapp` | Sends a message to a contact | **yes** (international number) |
+| Provider | `post()` action | `target` required | `read()` |
+|---|---|---|---|
+| `facebook` | Posts to the wall | no | yes (own wall posts) |
+| `linkedin` | Posts to the feed | no | yes (own activity) |
+| `whatsapp` | Sends a message to a contact | **yes** (international number) | no |
 
 > ⚠️ Automating these platforms **violates their Terms of Service**. Risk: captcha/2FA, blocking, ban. Use only on **your own accounts**, at your own risk. No verification is bypassed.
 
@@ -45,6 +45,11 @@ social-connector post whatsapp --to 33612345678 "Hi!"
 
 # Show Chromium for a run (debug): -s / --show / --headed
 social-connector post whatsapp --to 33612345678 "Hi!" --show
+
+# Read your own posts (Facebook, LinkedIn). Default 10, --json for machine output.
+social-connector read facebook
+social-connector read linkedin --limit 5
+social-connector read facebook --json | jq '.[].text'
 
 # Session status
 social-connector status facebook
@@ -85,11 +90,12 @@ try {
 | `login(opts?)` | **Manual** login. Reuses the session if valid. `opts.timeoutMs` |
 | `isLoggedIn()` | `true` if a saved session is valid |
 | `post(content, options?)` | Posts/sends. `options.target` (WhatsApp), `options.screenshotPath` |
+| `read(options?)` | Reads your own posts → `Post[]`. `options.limit` (default 10). Facebook/LinkedIn only; throws `UnsupportedActionError` for WhatsApp |
 | `close()` | Closes the browser |
 
 ### Typed errors
 
-`NotLoggedInError`, `CheckpointError`, `SelectorError`, `PostFailedError`, `UnknownProviderError` — derive from `SocialConnectorError`.
+`NotLoggedInError`, `CheckpointError`, `SelectorError`, `PostFailedError`, `UnknownProviderError`, `UnsupportedActionError` — derive from `SocialConnectorError`.
 
 ## Architecture
 

@@ -1,6 +1,15 @@
-import { requireVisible, waitGone } from "../dom.js";
+import { collectPosts, firstVisible, requireVisible, waitGone } from "../dom.js";
 import { PostFailedError } from "../errors.js";
 import type { SocialProvider } from "../types.js";
+
+/** Selectors for the link to the logged-in user's own profile (/in/<vanity>). */
+const OWN_PROFILE_LINK = [
+  'a[href*="/in/"][data-control-name="identity_profile_photo"]',
+  ".global-nav__me a[href*=\"/in/\"]",
+  'aside a[href*="/in/"]',
+  'a.profile-card-profile-link[href*="/in/"]',
+  'a[href*="/in/"]',
+];
 
 /**
  * LinkedIn — posts text to the feed.
@@ -84,5 +93,38 @@ export const linkedin: SocialProvider = {
       );
     }
     log.step("Post confirmed.");
+  },
+
+  async readPosts({ page, options, log }) {
+    const limit = options.limit ?? 10;
+
+    log.step("Locating your profile...");
+    await page.goto("https://www.linkedin.com/feed/", { waitUntil: "domcontentloaded" });
+    const link = await firstVisible(page, OWN_PROFILE_LINK, 8000);
+    const href = (await link?.getAttribute("href")) ?? null;
+
+    // Derive the recent-activity URL from the profile link; fall back to the
+    // /in/me/ alias if the link could not be found.
+    let activityUrl = "https://www.linkedin.com/in/me/recent-activity/all/";
+    if (href) {
+      const path = href.startsWith("http") ? new URL(href).pathname : href;
+      const base = (path.split("?")[0] ?? path).replace(/\/$/, "");
+      activityUrl = `https://www.linkedin.com${base}/recent-activity/all/`;
+    }
+
+    log.step("Opening your recent activity...");
+    await page.goto(activityUrl, { waitUntil: "domcontentloaded" });
+    await page.waitForTimeout(2000);
+
+    log.step(`Collecting up to ${limit} post(s)...`);
+    return collectPosts(page, {
+      limit,
+      log,
+      // FRAGILE: activity feed update units. Patch if the DOM changes.
+      unit: "div.feed-shared-update-v2, li.profile-creator-shared-feed-update__container",
+      text: ".update-components-text, .feed-shared-update-v2__description, .update-components-update-v2__commentary",
+      url: 'a[href*="/feed/update/"]',
+      time: ".update-components-actor__sub-description, .update-components-actor__sub-description-link",
+    });
   },
 };

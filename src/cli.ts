@@ -4,7 +4,7 @@ import { createRequire } from "node:module";
 import { SocialConnector } from "./SocialConnector.js";
 import { SocialConnectorError } from "./errors.js";
 import { PROVIDERS } from "./providers/index.js";
-import type { ProviderId } from "./types.js";
+import type { Post, ProviderId } from "./types.js";
 
 const require = createRequire(import.meta.url);
 const pkg = require("../package.json") as { name: string; version: string };
@@ -43,6 +43,8 @@ interface Args {
   screenshot?: string;
   show?: boolean;
   help?: boolean;
+  limit?: number;
+  json?: boolean;
   positionals: string[];
 }
 
@@ -54,11 +56,29 @@ function parseArgs(argv: string[]): Args {
     if (a === "--provider" || a === "-p") out.provider = argv[++i];
     else if (a === "--to" || a === "-t") out.to = argv[++i];
     else if (a === "--screenshot") out.screenshot = argv[++i];
+    else if (a === "--limit" || a === "-n") out.limit = Number(argv[++i]);
+    else if (a === "--json") out.json = true;
     else if (a === "--show" || a === "--headed" || a === "-s") out.show = true;
     else if (a === "--help" || a === "-h") out.help = true;
     else out.positionals.push(a!);
   }
   return out;
+}
+
+/** Pretty-prints scraped posts to stdout. */
+function printPosts(posts: Post[]): void {
+  if (posts.length === 0) {
+    console.log("No posts found.");
+    return;
+  }
+  posts.forEach((p, i) => {
+    const head = `#${i + 1}${p.time ? `  ${p.time}` : ""}`;
+    const body = p.text.length > 500 ? `${p.text.slice(0, 500)}…` : p.text;
+    console.log(head);
+    console.log(body.replace(/^/gm, "    "));
+    if (p.url) console.log(`    ${p.url}`);
+    console.log("");
+  });
 }
 
 /**
@@ -111,12 +131,15 @@ function generalHelp(): string {
     "Commands:",
     "  login   [provider]                     Open a window, log in by hand (or scan QR), save the session",
     '  post    [provider] [--to <num>] "msg"  Post (Facebook/LinkedIn) or send (WhatsApp, needs --to)',
+    "  read    [provider] [--limit N]         Read your own posts (Facebook, LinkedIn)",
     "  status  [provider]                     Print whether a valid session exists",
     "  help                                   Show this help",
     "",
     "Options:",
     "  -p, --provider <id>   Provider (else first arg, else PROVIDER env)",
     "  -t, --to <num>        WhatsApp recipient: international number, no '+' (e.g. 33612345678)",
+    "  -n, --limit <N>       read: max posts to fetch (default 10)",
+    "      --json            read: print posts as JSON instead of text",
     "  -s, --show, --headed  Show Chromium for this run (default: hidden). login is always visible.",
     "      --screenshot <p>  Save a screenshot before sending (debug)",
     "  -h, --help            Show help (use after a command for command help)",
@@ -128,6 +151,7 @@ function generalHelp(): string {
     `  ${BIN} login whatsapp`,
     `  ${BIN} post facebook "Hello wall"`,
     `  ${BIN} post whatsapp --to 33612345678 "Hi!" --show`,
+    `  ${BIN} read linkedin --limit 5`,
     `  ${BIN} status linkedin`,
   ].join("\n");
 }
@@ -155,6 +179,20 @@ function commandHelp(cmd: string): string {
         `Examples:`,
         `  ${BIN} post linkedin "Hello feed"`,
         `  ${BIN} post whatsapp --to 33612345678 "Hi!"`,
+      ].join("\n");
+    case "read":
+      return [
+        `Usage: ${BIN} read [provider] [--limit N] [--json]`,
+        "",
+        "Read the logged-in user's own posts. Supported: Facebook (wall),",
+        "LinkedIn (recent activity). Scrapes the profile, so it is best-effort",
+        "and may need selector patches if the UI changes.",
+        "",
+        "Options: -n/--limit (default 10), --json, -s/--show",
+        "",
+        `Examples:`,
+        `  ${BIN} read facebook`,
+        `  ${BIN} read linkedin --limit 5 --json`,
       ].join("\n");
     case "status":
       return [
@@ -228,6 +266,20 @@ async function main(): Promise<void> {
       try {
         const ok = await fb.isLoggedIn();
         console.log(ok ? "[OK] Valid session." : "[--] No valid session.");
+      } finally {
+        await fb.close();
+      }
+      break;
+    }
+
+    case "read": {
+      const provider = takeProvider(args);
+      const fb = makeConnector(provider, { show: args.show });
+      try {
+        // read() validates the session itself; no extra pre-check navigation.
+        const posts = await fb.read({ limit: args.limit });
+        if (args.json) console.log(JSON.stringify(posts, null, 2));
+        else printPosts(posts);
       } finally {
         await fb.close();
       }

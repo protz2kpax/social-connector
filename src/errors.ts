@@ -24,3 +24,6 @@ export class PostFailedError extends SocialConnectorError {}
 
 /** Unknown / unsupported provider. */
 export class UnknownProviderError extends SocialConnectorError {}
+
+/** The provider does not support the requested action (e.g. reading posts). */
+export class UnsupportedActionError extends SocialConnectorError {}

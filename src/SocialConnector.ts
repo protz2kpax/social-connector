@@ -2,8 +2,14 @@ import { BrowserSession } from "./BrowserSession.js";
 import { AuthManager, type ManualLoginOptions } from "./AuthManager.js";
 import { createLogger } from "./logger.js";
 import { getProvider } from "./providers/index.js";
-import { NotLoggedInError } from "./errors.js";
-import type { PostOptions, ProviderId, SocialProvider } from "./types.js";
+import { NotLoggedInError, UnsupportedActionError } from "./errors.js";
+import type {
+  Post,
+  PostOptions,
+  ProviderId,
+  ReadOptions,
+  SocialProvider,
+} from "./types.js";
 
 export interface SocialConnectorOptions {
   /** Persistent profile directory. Default: the provider's (e.g. ./.fb-profile). */
@@ -92,6 +98,29 @@ export class SocialConnector {
     await this.provider.post({
       page: this.session.page,
       content,
+      options,
+      log: this.session.logger,
+    });
+  }
+
+  /**
+   * Reads the logged-in user's own posts (Facebook wall, LinkedIn activity).
+   * Throws UnsupportedActionError for providers without a post feed (WhatsApp).
+   */
+  async read(options: ReadOptions = {}): Promise<Post[]> {
+    await this.start();
+    if (!(await this.auth.isLoggedIn())) {
+      throw new NotLoggedInError(
+        `No valid session for ${this.provider.label}. Run login() first.`,
+      );
+    }
+    if (!this.provider.readPosts) {
+      throw new UnsupportedActionError(
+        `${this.provider.label} does not support reading posts.`,
+      );
+    }
+    return this.provider.readPosts({
+      page: this.session.page,
       options,
       log: this.session.logger,
     });

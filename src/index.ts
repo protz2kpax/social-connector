@@ -8,6 +8,9 @@ export type {
   ProviderAuthConfig,
   PostOptions,
   PostContext,
+  Post,
+  ReadOptions,
+  ReadContext,
 } from "./types.js";
 export type { Logger } from "./logger.js";
 export {
@@ -17,4 +20,5 @@ export {
   SelectorError,
   PostFailedError,
   UnknownProviderError,
+  UnsupportedActionError,
 } from "./errors.js";

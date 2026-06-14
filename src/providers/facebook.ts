@@ -1,4 +1,4 @@
-import { requireVisible, waitGone } from "../dom.js";
+import { collectPosts, requireVisible, waitGone } from "../dom.js";
 import { PostFailedError } from "../errors.js";
 import type { SocialProvider } from "../types.js";
 
@@ -82,5 +82,51 @@ export const facebook: SocialProvider = {
       );
     }
     log.step("Post confirmed.");
+  },
+
+  async readPosts({ page, options, log }) {
+    const limit = options.limit ?? 10;
+    log.step("Opening your profile (facebook.com/me)...");
+    await page.goto("https://www.facebook.com/me", { waitUntil: "domcontentloaded" });
+    // Give the timeline a moment to hydrate its first feed units.
+    await page.waitForTimeout(2000);
+
+    // After /me redirects, the URL is the user's own profile. Derive the
+    // identifier so we can keep only posts they authored — the timeline also
+    // surfaces activity (comments on friends' posts) we must skip.
+    let me = "";
+    try {
+      const u = new URL(page.url());
+      me = u.pathname.includes("profile.php")
+        ? u.searchParams.get("id") ?? ""
+        : u.pathname.replace(/\//g, "");
+    } catch {
+      /* keep me empty -> only the comment filter applies */
+    }
+    log.info(me ? `Profile id: ${me}` : "Profile id unknown — author filter relaxed.");
+
+    log.step(`Collecting up to ${limit} of your own post(s)...`);
+    return collectPosts(page, {
+      limit,
+      log,
+      maxStale: 14,
+      // FRAGILE: profile timeline feed units. Patch if the DOM changes.
+      unit: 'div[role="article"]',
+      text: '[data-ad-preview="message"], div[data-ad-comet-preview="message"], div[dir="auto"]',
+      url: 'a[href*="/posts/"], a[href*="story_fbid="], a[href*="/permalink/"]',
+      time: 'a[role="link"] span[aria-label], abbr',
+      // Keep only authored posts: a /posts/ (or /videos/) permalink owned by
+      // the user, never a comment (comment_id) or someone else's story.
+      keep: (p) => {
+        if (!p.url) return false;
+        if (p.url.includes("comment_id=")) return false;
+        if (!me) return /\/posts\/|\/videos\/|story_fbid=/.test(p.url);
+        return (
+          p.url.includes(`/${me}/posts/`) ||
+          p.url.includes(`/${me}/videos/`) ||
+          (p.url.includes("story_fbid=") && p.url.includes(`id=${me}`))
+        );
+      },
+    });
   },
 };
