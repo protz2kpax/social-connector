@@ -60,10 +60,10 @@ async function getCredentials(): Promise<{ email: string; password: string }> {
   return { email, password };
 }
 
-function makeConnector(): FacebookConnector {
+function makeConnector(forceHeaded = false): FacebookConnector {
   return new FacebookConnector({
     statePath: process.env.FB_STATE_PATH ?? "./fb-state.json",
-    headless: bool(process.env.FB_HEADLESS, false),
+    headless: forceHeaded ? false : bool(process.env.FB_HEADLESS, false),
   });
 }
 
@@ -73,6 +73,18 @@ async function main(): Promise<void> {
 
   switch (cmd) {
     case "login": {
+      const manual = rest.includes("--manual") || rest.includes("manual");
+      if (manual) {
+        // Login 100% manuel : fenetre visible forcee, aucun identifiant tape.
+        const fb = makeConnector(true);
+        try {
+          await fb.loginManually();
+          console.log("[OK] Connecte (manuel). Session sauvegardee.");
+        } finally {
+          await fb.close();
+        }
+        break;
+      }
       const fb = makeConnector();
       try {
         const creds = await getCredentials();
@@ -123,6 +135,7 @@ async function main(): Promise<void> {
           "",
           "Commandes:",
           "  login                  Se connecte (creds via .env ou prompt) et sauve la session",
+          "  login --manual         Ouvre une fenetre, tu te connectes a la main (recommande)",
           '  post "message"         Publie un message sur le mur',
           "  status                 Indique si une session valide existe",
           "",

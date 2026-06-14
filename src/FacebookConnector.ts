@@ -60,6 +60,15 @@ export class FacebookConnector {
     await this.auth.ensureLoggedIn(creds, opts);
   }
 
+  /**
+   * Login 100% MANUEL : ouvre une fenetre, tu te connectes a la main, la lib
+   * sauve la session. Necessite headless=false. Recommande (evite la detection).
+   */
+  async loginManually(opts: { timeoutMs?: number } = {}): Promise<void> {
+    await this.start();
+    await this.auth.waitForManualLogin(opts.timeoutMs);
+  }
+
   /** Verifie une session deja sauvegardee, sans identifiants. */
   async isLoggedIn(): Promise<boolean> {
     await this.start();

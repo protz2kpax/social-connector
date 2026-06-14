@@ -96,6 +96,44 @@ export class AuthManager {
     await this.session.saveState();
   }
 
+  /**
+   * Login 100% MANUEL : ouvre la page de connexion et attend que l'utilisateur
+   * se connecte lui-meme dans la fenetre (aucun identifiant tape par la lib).
+   * Une fois connecte, sauve la session. Recommande car evite la detection
+   * du remplissage automatique par Facebook.
+   */
+  async waitForManualLogin(timeoutMs = 300_000): Promise<void> {
+    if (await this.isLoggedIn()) {
+      this.log.step("Deja connecte — session valide, rien a faire.");
+      return;
+    }
+    const page = this.session.page;
+    this.log.step("Ouverture de la page de connexion...");
+    await page.goto(URLS.login, { waitUntil: "domcontentloaded" });
+    await this.dismissCookieBanner(page);
+
+    process.stdout.write(
+      "\n========================================================\n" +
+        ">>> CONNECTE-TOI MANUELLEMENT dans la fenetre Chromium.\n" +
+        ">>> (email + mot de passe + 2FA/captcha si demande)\n" +
+        `>>> J'attends jusqu'a ${Math.round(timeoutMs / 1000)}s...\n` +
+        "========================================================\n",
+    );
+
+    const deadline = Date.now() + timeoutMs;
+    while (Date.now() < deadline) {
+      if (await firstVisible(page, LOGGED_IN_MARKERS, 1000)) {
+        this.log.step("Connexion detectee — sauvegarde de la session.");
+        await this.session.saveState();
+        return;
+      }
+      await page.waitForTimeout(1500);
+    }
+    throw new NotLoggedInError(
+      "Login manuel non termine dans le delai imparti. Relance et connecte-toi.",
+    );
+  }
+
   private async fillCredentials(page: Page, creds: Credentials): Promise<void> {
     this.log.step("Saisie des identifiants...");
     const email = await requireVisible(page, LOGIN.email, "champ email");

@@ -22,6 +22,7 @@
     "build": "tsc",
     "dev": "tsx src/cli.ts",
     "login": "tsx src/cli.ts login",
+    "login:manual": "tsx src/cli.ts login --manual",
     "post": "tsx src/cli.ts post",
     "check:selectors": "tsx scripts/check-login-selectors.ts",
     "typecheck": "tsc --noEmit",
