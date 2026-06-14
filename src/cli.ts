@@ -40,6 +40,7 @@ function bool(v: string | undefined, def: boolean): boolean {
 interface Args {
   provider?: string;
   to?: string;
+  chat?: string;
   screenshot?: string;
   show?: boolean;
   help?: boolean;
@@ -55,6 +56,7 @@ function parseArgs(argv: string[]): Args {
     const a = argv[i];
     if (a === "--provider" || a === "-p") out.provider = argv[++i];
     else if (a === "--to" || a === "-t") out.to = argv[++i];
+    else if (a === "--chat" || a === "-c") out.chat = argv[++i];
     else if (a === "--screenshot") out.screenshot = argv[++i];
     else if (a === "--limit" || a === "-n") out.limit = Number(argv[++i]);
     else if (a === "--json") out.json = true;
@@ -137,7 +139,8 @@ function generalHelp(): string {
     "",
     "Options:",
     "  -p, --provider <id>   Provider (else first arg, else PROVIDER env)",
-    "  -t, --to <num>        WhatsApp recipient: international number, no '+' (e.g. 33612345678)",
+    "  -t, --to <num>        WhatsApp contact: international number, no '+' (e.g. 33612345678)",
+    '  -c, --chat <name>     WhatsApp group/community by name (overrides --to)',
     "  -n, --limit <N>       read: max posts to fetch (default 10)",
     "      --json            read: print posts as JSON instead of text",
     "  -s, --show, --headed  Show Chromium for this run (default: hidden). login is always visible.",
@@ -151,6 +154,7 @@ function generalHelp(): string {
     `  ${BIN} login whatsapp`,
     `  ${BIN} post facebook "Hello wall"`,
     `  ${BIN} post whatsapp --to 33612345678 "Hi!" --show`,
+    `  ${BIN} post whatsapp --chat "My community - Announcements" "Hi all!"`,
     `  ${BIN} read linkedin --limit 5`,
     `  ${BIN} status linkedin`,
   ].join("\n");
@@ -169,16 +173,19 @@ function commandHelp(cmd: string): string {
       ].join("\n");
     case "post":
       return [
-        `Usage: ${BIN} post [provider] [--to <num>] [--show] "your message"`,
+        `Usage: ${BIN} post [provider] [--to <num> | --chat <name>] [--show] "your message"`,
         "",
         "Post to the wall/feed (Facebook, LinkedIn) or send a message (WhatsApp).",
-        "WhatsApp requires --to <international number without '+'>.",
+        "WhatsApp needs a destination:",
+        "  --to <number>   a contact (international number without '+')",
+        "  --chat <name>   a group or community announcement group, by name (overrides --to)",
         "",
-        "Options: -t/--to, -s/--show, --screenshot <path>",
+        "Options: -t/--to, -c/--chat, -s/--show, --screenshot <path>",
         "",
         `Examples:`,
         `  ${BIN} post linkedin "Hello feed"`,
         `  ${BIN} post whatsapp --to 33612345678 "Hi!"`,
+        `  ${BIN} post whatsapp --chat "My community - Announcements" "Hi all!"`,
       ].join("\n");
     case "read":
       return [
@@ -253,7 +260,11 @@ async function main(): Promise<void> {
           );
           process.exit(1);
         }
-        await fb.post(text, { target: args.to, screenshotPath: args.screenshot });
+        await fb.post(text, {
+          target: args.to,
+          chat: args.chat,
+          screenshotPath: args.screenshot,
+        });
         console.log("[OK] Message posted/sent.");
       } finally {
         await fb.close();

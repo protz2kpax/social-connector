@@ -27,10 +27,17 @@ export interface ProviderAuthConfig {
 
 export interface PostOptions {
   /**
-   * Recipient. Required for WhatsApp (international number, e.g. "33612345678").
-   * Ignored by providers that post to a wall/feed (Facebook, LinkedIn).
+   * Recipient phone number. WhatsApp only: international number, no '+'
+   * (e.g. "33612345678"). Ignored by wall/feed providers (Facebook, LinkedIn).
    */
   target?: string;
+  /**
+   * Chat/group/community name to open by searching the WhatsApp chat list.
+   * Use this to message a group or a community's announcement group, which
+   * have no phone number. Takes precedence over `target`. EXPERIMENTAL:
+   * matches by visible name, so the name must be unique enough.
+   */
+  chat?: string;
   /** Screenshot before send/post (path). Debug. */
   screenshotPath?: string;
 }

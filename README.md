@@ -8,7 +8,7 @@ Same principle for all providers: login is **manual** (they block automated logi
 |---|---|---|---|
 | `facebook` | Posts to the wall | no | yes (own wall posts) |
 | `linkedin` | Posts to the feed | no | yes (own activity) |
-| `whatsapp` | Sends a message to a contact | **yes** (international number) | no |
+| `whatsapp` | Sends a message to a contact, group or community | **yes** — `--to <number>` (contact) or `--chat <name>` (group/community) | no |
 
 > ⚠️ Automating these platforms **violates their Terms of Service**. Risk: captcha/2FA, blocking, ban. Use only on **your own accounts**, at your own risk. No verification is bypassed.
 
@@ -42,6 +42,9 @@ social-connector login linkedin
 social-connector post facebook "Hello my wall"
 social-connector post linkedin "Hello my feed"
 social-connector post whatsapp --to 33612345678 "Hi!"
+
+# WhatsApp group / community announcement group, by name (experimental)
+social-connector post whatsapp --chat "My community - Announcements" "Hi all!"
 
 # Show Chromium for a run (debug): -s / --show / --headed
 social-connector post whatsapp --to 33612345678 "Hi!" --show
@@ -119,7 +122,8 @@ Create `src/providers/<name>.ts` exporting a `SocialProvider` (`auth` + `post`),
 
 - **Fragile selectors**: each provider changes its DOM. A `SelectorError` lists the selectors tried → patch the relevant provider file.
 - **Not verified without a real login**: WhatsApp/LinkedIn `post` selectors and LinkedIn logged-out markers. Adjust at the first real login.
-- **WhatsApp**: `target` = international number without `+` or spaces (e.g. `33612345678`).
+- **WhatsApp**: `--to` = international number without `+` or spaces (e.g. `33612345678`).
+- **WhatsApp groups/communities** (`--chat`, experimental): WhatsApp has no deep-link for groups, so the chat is opened by **searching its name** in the chat list. The name must be unique and exact (case/accents); a wrong match means messaging the wrong chat. A community's announcement group is usually **admin-only** — posting as a non-admin fails with a `SelectorError` (no message box).
 
 ## Scripts
 
