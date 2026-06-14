@@ -23,6 +23,7 @@
     "dev": "tsx src/cli.ts",
     "login": "tsx src/cli.ts login",
     "post": "tsx src/cli.ts post",
+    "check:selectors": "tsx scripts/check-login-selectors.ts",
     "typecheck": "tsc --noEmit",
     "prepublishOnly": "npm run build"
   },

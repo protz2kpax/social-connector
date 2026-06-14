@@ -20,6 +20,13 @@ export const LOGIN = {
   email: ["input#email", 'input[name="email"]', 'input[type="text"][name="email"]'],
   password: ["input#pass", 'input[name="pass"]', 'input[type="password"]'],
   submit: [
+    // FB desktop login.php : le "bouton" est un div[role=button] localise,
+    // pas un <button>. On garde les anciens en fallback.
+    '[role="button"][aria-label="Se connecter"]',
+    '[role="button"][aria-label="Log in"]',
+    '[role="button"][aria-label="Log In"]',
+    'div[aria-label="Se connecter"]',
+    'div[aria-label="Log in"]',
     'button[name="login"]',
     'button[type="submit"]',
     '[data-testid="royal_login_button"]',
@@ -27,6 +34,8 @@ export const LOGIN = {
   cookieAccept: [
     '[data-cookiebanner="accept_button"]',
     'button[data-testid="cookie-policy-manage-dialog-accept-button"]',
+    '[role="button"][aria-label="Autoriser tous les cookies"]',
+    '[role="button"][aria-label="Allow all cookies"]',
     'div[aria-label="Autoriser tous les cookies"]',
     'div[aria-label="Allow all cookies"]',
   ],
@@ -66,7 +75,8 @@ export const CHECKPOINT_MARKERS = [
 
 /** Le composer "Quoi de neuf ?" sur le fil d'accueil (ouvre la modale). */
 export const COMPOSER_TRIGGER = [
-  '[aria-label="CrE9er une publication"]', // accent peut etre encode differemment
+  '[role="button"][aria-label="Créer une publication"]',
+  '[role="button"][aria-label="Create a post"]',
   'div[role="button"]:has-text("Quoi de neuf")',
   'div[role="button"]:has-text("What\'s on your mind")',
   'div[role="region"] div[role="button"]:has-text("Quoi de neuf")',
