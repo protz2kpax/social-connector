@@ -75,6 +75,8 @@ export interface ConversationMessage {
   time?: string;
   /** Date as shown in the bubble metadata (e.g. "14/06/2026"), if found. */
   date?: string;
+  /** Stable WhatsApp message id (data-id), used for cache dedup. */
+  id?: string;
 }
 
 export interface ReadConversationOptions {
@@ -88,6 +90,12 @@ export interface ReadConversationOptions {
    * kept. The hard cap is always `limit`.
    */
   since?: string;
+  /**
+   * If the encrypted cache holds this chat and it is younger than this many
+   * milliseconds, serve it without launching the browser. 0 (default) always
+   * re-scrapes (but still write-through updates the cache).
+   */
+  cacheMaxAgeMs?: number;
 }
 
 /** Context passed to a provider's readConversation() action. */

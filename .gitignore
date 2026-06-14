@@ -12,4 +12,6 @@ li-state.json
 .fb-profile/
 .wa-profile/
 .li-profile/
+# Encrypted conversation cache
+.cache/
 screenshots/

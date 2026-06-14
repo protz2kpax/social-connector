@@ -283,7 +283,7 @@ export const whatsapp: SocialProvider = {
       // data-id is "true_..." for outgoing, "false_..." for incoming.
       const dataId = (await row.getAttribute("data-id").catch(() => "")) ?? "";
       const from = dataId.startsWith("true") ? "me" : sender ?? "?";
-      out.push({ from, text, time, date });
+      out.push({ from, text, time, date, id: dataId || undefined });
     }
 
     // Best-effort date filter; `limit` is the hard cap (keep the most recent).

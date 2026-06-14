@@ -47,6 +47,7 @@ interface Args {
   help?: boolean;
   limit?: number;
   since?: string;
+  cacheTtl?: number;
   json?: boolean;
   yes?: boolean;
   positionals: string[];
@@ -63,6 +64,7 @@ function parseArgs(argv: string[]): Args {
     else if (a === "--screenshot") out.screenshot = argv[++i];
     else if (a === "--limit" || a === "-n") out.limit = Number(argv[++i]);
     else if (a === "--since") out.since = argv[++i];
+    else if (a === "--cache-ttl") out.cacheTtl = Number(argv[++i]);
     else if (a === "--json") out.json = true;
     else if (a === "--yes" || a === "-y") out.yes = true;
     else if (a === "--show" || a === "--headed" || a === "-s") out.show = true;
@@ -234,8 +236,12 @@ function commandHelp(cmd: string): string {
         "by exact chat name. `--limit` caps how many messages (default 50);",
         "`--since` keeps messages on/after a date (best-effort).",
         "",
+        "With CACHE_PASSPHRASE set, results are cached encrypted (AES-256-GCM)",
+        "under ./.cache. `--cache-ttl <seconds>` serves the cache without opening",
+        "the browser if it is that fresh; otherwise it re-scrapes and updates it.",
+        "",
         `Example:`,
-        `  ${BIN} conversation --chat "IDEAL CRM / OUTILS" --limit 30`,
+        `  ${BIN} conversation --chat "IDEAL CRM / OUTILS" --limit 30 --cache-ttl 600`,
       ].join("\n");
     case "ai":
       return [
@@ -371,7 +377,12 @@ async function main(): Promise<void> {
       }
       const fb = makeConnector("whatsapp", { show: args.show });
       try {
-        const msgs = await fb.readConversation({ chat, limit: args.limit, since: args.since });
+        const msgs = await fb.readConversation({
+          chat,
+          limit: args.limit,
+          since: args.since,
+          cacheMaxAgeMs: args.cacheTtl ? args.cacheTtl * 1000 : undefined,
+        });
         if (args.json) console.log(JSON.stringify(msgs, null, 2));
         else if (msgs.length === 0) console.log("No messages found.");
         else msgs.forEach((m) => console.log(`[${m.time ?? "?"}] ${m.from}: ${m.text}`));

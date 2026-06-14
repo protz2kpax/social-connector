@@ -2,6 +2,7 @@ import { BrowserSession } from "./BrowserSession.js";
 import { AuthManager, type ManualLoginOptions } from "./AuthManager.js";
 import { createLogger } from "./logger.js";
 import { getProvider } from "./providers/index.js";
+import { cacheEnabled, isFresh, readCache, writeCache } from "./cache.js";
 import { NotLoggedInError, UnsupportedActionError } from "./errors.js";
 import type {
   ConversationMessage,
@@ -156,6 +157,16 @@ export class SocialConnector {
    * Throws UnsupportedActionError for providers without conversations.
    */
   async readConversation(options: ReadConversationOptions): Promise<ConversationMessage[]> {
+    // Serve from the encrypted cache without launching the browser if fresh.
+    const maxAge = options.cacheMaxAgeMs ?? 0;
+    if (cacheEnabled() && maxAge > 0) {
+      const entry = await readCache(options.chat);
+      if (entry && isFresh(entry, maxAge, Date.now())) {
+        const limit = options.limit ?? 50;
+        return entry.messages.slice(-limit);
+      }
+    }
+
     await this.start();
     if (!(await this.auth.isLoggedIn())) {
       throw new NotLoggedInError(
@@ -167,11 +178,14 @@ export class SocialConnector {
         `${this.provider.label} does not support reading conversations.`,
       );
     }
-    return this.provider.readConversation({
+    const messages = await this.provider.readConversation({
       page: this.session.page,
       options,
       log: this.session.logger,
     });
+    // Write-through: merge into the encrypted cache (no-op if disabled).
+    await writeCache(options.chat, messages, new Date().toISOString()).catch(() => {});
+    return messages;
   }
 
   /** Closes the browser. */
