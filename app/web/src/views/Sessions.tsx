@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { getJSON, postJSON, streamRun } from "../api.js";
 
 interface P { id: string; label: string; loggedIn: boolean; }
@@ -6,13 +6,15 @@ interface P { id: string; label: string; loggedIn: boolean; }
 export function Sessions() {
   const [list, setList] = useState<P[]>([]);
   const [busy, setBusy] = useState<string | null>(null);
+  const streamCloser = useRef<(() => void) | null>(null);
   const load = () => getJSON<P[]>("/api/providers").then(setList).catch(() => {});
   useEffect(() => { load(); }, []);
+  useEffect(() => () => streamCloser.current?.(), []);
 
   async function login(id: string) {
     setBusy(id);
     const { runId } = await postJSON<{ runId: string }>(`/api/login/${id}`, {});
-    streamRun(runId, (e) => {
+    streamCloser.current = streamRun(runId, (e) => {
       if (e.type === "done" || e.type === "error") { setBusy(null); load(); }
     });
   }

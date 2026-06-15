@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { postJSON, streamRun } from "../api.js";
 
 const PROVIDERS = [
@@ -14,6 +14,8 @@ export function Broadcast() {
   const [waTarget, setWaTarget] = useState("");
   const [status, setStatus] = useState<Record<string, string>>({});
   const [error, setError] = useState("");
+  const streamCloser = useRef<(() => void) | null>(null);
+  useEffect(() => () => streamCloser.current?.(), []);
 
   async function send() {
     setError(""); setStatus({});
@@ -22,7 +24,7 @@ export function Broadcast() {
     if (sel.whatsapp) body.whatsapp = waMode === "to" ? { to: waTarget } : { chat: waTarget };
     try {
       const { runId } = await postJSON<{ runId: string }>("/api/broadcast", body);
-      streamRun(runId, (e) => {
+      streamCloser.current = streamRun(runId, (e) => {
         if (e.type === "provider_status") {
           setStatus((s) => ({ ...s, [e.data.provider]: e.data.message ? `error: ${e.data.message}` : e.data.status }));
         }

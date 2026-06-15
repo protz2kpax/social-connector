@@ -5,7 +5,7 @@ import type { ConnectorManager } from "../ConnectorManager.js";
 /** Parses a query param to a positive integer, falling back on missing/NaN. */
 function intParam(v: unknown, fallback: number): number {
   const n = Number(v);
-  return Number.isFinite(n) ? n : fallback;
+  return Number.isFinite(n) && n >= 0 ? n : fallback;
 }
 
 export function readRouter(manager: ConnectorManager): Router {
@@ -42,10 +42,14 @@ export function readRouter(manager: ConnectorManager): Router {
   });
 
   r.get("/posts", async (req, res) => {
-    const provider = String(req.query.provider ?? "facebook") as ProviderId;
+    const ALL: ProviderId[] = ["facebook", "whatsapp", "linkedin"];
+    const provider = String(req.query.provider ?? "facebook");
+    if (!ALL.includes(provider as ProviderId)) {
+      return res.status(400).json({ error: "unknown provider" });
+    }
     try {
-      res.json(await manager.run(provider, async () =>
-        (await manager.get(provider)).read({ limit: intParam(req.query.limit, 10) }),
+      res.json(await manager.run(provider as ProviderId, async () =>
+        (await manager.get(provider as ProviderId)).read({ limit: intParam(req.query.limit, 10) }),
       ));
     } catch (e) { res.status(500).json({ error: (e as Error).message }); }
   });

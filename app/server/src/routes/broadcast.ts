@@ -18,9 +18,9 @@ export function broadcastRouter(manager: ConnectorManager): Router {
     const runId = runs.create();
     res.json({ runId });
 
-    for (const p of sel) {
+    const jobs = sel.map((p) => {
       runs.emit(runId, { type: "provider_status", data: { provider: p, status: "pending" } });
-      void manager.run(p, async () => {
+      return manager.run(p, async () => {
         runs.emit(runId, { type: "provider_status", data: { provider: p, status: "sending" } });
         try {
           const c = await manager.get(p);
@@ -32,9 +32,8 @@ export function broadcastRouter(manager: ConnectorManager): Router {
           runs.emit(runId, { type: "provider_status", data: { provider: p, status: "error", message: (e as Error).message } });
         }
       });
-    }
-    void Promise.allSettled(sel.map((p) => manager.run(p, async () => {})))
-      .then(() => runs.emit(runId, { type: "done", data: {} }));
+    });
+    void Promise.allSettled(jobs).then(() => runs.emit(runId, { type: "done", data: {} }));
   });
   return r;
 }

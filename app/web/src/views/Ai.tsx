@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { postJSON, streamRun } from "../api.js";
 import { ConfirmModal } from "../components/ConfirmModal.js";
 
@@ -6,11 +6,13 @@ export function Ai() {
   const [instruction, setInstruction] = useState("");
   const [log, setLog] = useState<string[]>([]);
   const [pending, setPending] = useState<{ runId: string; confirmId: string; question: string } | null>(null);
+  const streamCloser = useRef<(() => void) | null>(null);
+  useEffect(() => () => streamCloser.current?.(), []);
 
   async function run() {
     setLog([]);
     const { runId } = await postJSON<{ runId: string }>("/api/ai", { instruction });
-    streamRun(runId, (e) => {
+    streamCloser.current = streamRun(runId, (e) => {
       if (e.type === "message") setLog((l) => [...l, e.data.text]);
       else if (e.type === "confirm_request") setPending({ runId, confirmId: e.data.confirmId, question: e.data.question });
       else if (e.type === "error") setLog((l) => [...l, `Erreur: ${e.data.message}`]);
