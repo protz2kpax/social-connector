@@ -92,6 +92,8 @@ export interface RunAiOptions {
   provider?: AiProvider;
   /** Confirmation prompt; defaults to a y/N readline prompt on stdin. */
   confirm?: (question: string) => Promise<boolean>;
+  /** Where agent text + status lines go. Default: console.log. */
+  output?: (line: string) => void;
 }
 
 async function defaultConfirm(question: string): Promise<boolean> {
@@ -133,6 +135,7 @@ async function execTool(
   wa: SocialConnector,
   autoSend: boolean,
   confirm: (q: string) => Promise<boolean>,
+  output: (line: string) => void,
 ): Promise<ToolOutcome> {
   if (name === "list_whatsapp_groups") {
     const groups = await wa.listGroups();
@@ -166,14 +169,14 @@ async function execTool(
         `\n>>> Send to "${target}":\n    "${message}"\n>>> Confirm? [y/N] `,
       );
       if (!ok) {
-        console.log("[--] Cancelled.");
+        output("[--] Cancelled.");
         return { content: "User declined to send the message.", isError: true };
       }
     }
 
     try {
       await wa.post(message, { chat, target: to });
-      console.log("[OK] Message sent.");
+      output("[OK] Message sent.");
       return { content: `Sent to ${target}.` };
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
@@ -188,6 +191,7 @@ async function execTool(
 /** Anthropic (Claude) backend — manual tool-use loop. */
 async function runAnthropic(opts: Required<Pick<RunAiOptions, "connector" | "instruction" | "autoSend">> & {
   confirm: (q: string) => Promise<boolean>;
+  output: (line: string) => void;
 }): Promise<void> {
   const client = new Anthropic(); // reads ANTHROPIC_API_KEY
   const tools: Anthropic.Tool[] = TOOL_DEFS.map((t) => ({
@@ -215,7 +219,7 @@ async function runAnthropic(opts: Required<Pick<RunAiOptions, "connector" | "ins
         .map((b) => b.text)
         .join("\n")
         .trim();
-      if (text) console.log(text);
+      if (text) opts.output(text);
       return;
     }
 
@@ -236,6 +240,7 @@ async function runAnthropic(opts: Required<Pick<RunAiOptions, "connector" | "ins
         opts.connector,
         opts.autoSend,
         opts.confirm,
+        opts.output,
       );
       results.push({
         type: "tool_result",
@@ -251,6 +256,7 @@ async function runAnthropic(opts: Required<Pick<RunAiOptions, "connector" | "ins
 /** OpenAI (ChatGPT) backend — chat.completions tool-calling loop. */
 async function runOpenAI(opts: Required<Pick<RunAiOptions, "connector" | "instruction" | "autoSend">> & {
   confirm: (q: string) => Promise<boolean>;
+  output: (line: string) => void;
 }): Promise<void> {
   const client = new OpenAI(); // reads OPENAI_API_KEY
   const model = process.env.OPENAI_MODEL ?? OPENAI_MODEL_DEFAULT;
@@ -280,7 +286,7 @@ async function runOpenAI(opts: Required<Pick<RunAiOptions, "connector" | "instru
 
     const calls = msg.tool_calls ?? [];
     if (calls.length === 0) {
-      if (msg.content) console.log(msg.content);
+      if (msg.content) opts.output(msg.content);
       return;
     }
 
@@ -299,7 +305,7 @@ async function runOpenAI(opts: Required<Pick<RunAiOptions, "connector" | "instru
       } catch {
         /* leave empty -> execTool reports the error */
       }
-      const out = await execTool(call.function.name, input, opts.connector, opts.autoSend, opts.confirm);
+      const out = await execTool(call.function.name, input, opts.connector, opts.autoSend, opts.confirm, opts.output);
       messages.push({ role: "tool", tool_call_id: call.id, content: out.content });
     }
   }
@@ -308,11 +314,13 @@ async function runOpenAI(opts: Required<Pick<RunAiOptions, "connector" | "instru
 /** Runs the natural-language WhatsApp agent on the selected backend. */
 export async function runAi(opts: RunAiOptions): Promise<void> {
   const provider = resolveProvider(opts.provider);
+  const output = opts.output ?? ((l: string) => console.log(l));
   const shared = {
     connector: opts.connector,
     instruction: opts.instruction,
     autoSend: opts.autoSend ?? false,
     confirm: opts.confirm ?? defaultConfirm,
+    output,
   };
   if (provider === "anthropic") await runAnthropic(shared);
   else await runOpenAI(shared);
