@@ -3,12 +3,24 @@ import { postJSON, streamRun } from "../api.js";
 import { Button } from "../components/Button.js";
 import { Spinner } from "../components/Spinner.js";
 import { Modal } from "../components/Modal.js";
+import { Markdown } from "../components/Markdown.js";
 
 type MsgRole = "user" | "agent" | "error";
 
 interface TranscriptMsg {
   role: MsgRole;
   text: string;
+}
+
+const STORAGE_KEY = "relay.assistant.transcript";
+
+function loadTranscript(): TranscriptMsg[] {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return raw ? (JSON.parse(raw) as TranscriptMsg[]) : [];
+  } catch {
+    return [];
+  }
 }
 
 interface PendingConfirm {
@@ -19,13 +31,31 @@ interface PendingConfirm {
 
 export function Assistant() {
   const [instruction, setInstruction] = useState("");
-  const [transcript, setTranscript] = useState<TranscriptMsg[]>([]);
+  const [transcript, setTranscript] = useState<TranscriptMsg[]>(loadTranscript);
   const [pending, setPending] = useState<PendingConfirm | null>(null);
   const [running, setRunning] = useState(false);
   const streamCloser = useRef<(() => void) | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => () => streamCloser.current?.(), []);
+
+  // Persist the transcript locally so it survives reloads.
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(transcript));
+    } catch {
+      /* storage full / unavailable — ignore */
+    }
+  }, [transcript]);
+
+  function clearTranscript() {
+    setTranscript([]);
+    try {
+      localStorage.removeItem(STORAGE_KEY);
+    } catch {
+      /* ignore */
+    }
+  }
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -80,6 +110,15 @@ export function Assistant() {
   return (
     <div className="content-container">
       <div className="card" style={{ display: "flex", flexDirection: "column", height: "calc(100vh - var(--topbar-height) - 64px)", minHeight: 400 }}>
+        {/* Header */}
+        <div className="assistant-header">
+          <span className="font-mono text-muted" style={{ fontSize: 11, letterSpacing: "0.04em" }}>
+            {transcript.length > 0 ? `${transcript.length} message${transcript.length > 1 ? "s" : ""} · saved locally` : "saved locally"}
+          </span>
+          <Button variant="ghost" onClick={clearTranscript} disabled={running || transcript.length === 0}>
+            Clear
+          </Button>
+        </div>
         {/* Transcript */}
         <div className="assistant-transcript" style={{ flex: 1, overflowY: "auto", padding: "8px 0" }}>
           {transcript.length === 0 && (
@@ -97,7 +136,7 @@ export function Assistant() {
                 {msg.role === "user" ? "You" : msg.role === "error" ? "Error" : "Agent"}
               </span>
               <div className={`transcript-bubble${msg.role === "error" ? " error" : ""}`}>
-                {msg.text}
+                {msg.role === "agent" ? <Markdown>{msg.text}</Markdown> : msg.text}
               </div>
             </div>
           ))}
