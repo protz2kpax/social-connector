@@ -41,5 +41,16 @@ export function providersRouter(manager: ConnectorManager): Router {
     });
   });
 
+  r.post("/logout/:provider", async (req, res) => {
+    const provider = req.params.provider as ProviderId;
+    if (!ALL.includes(provider)) return res.status(400).json({ error: "unknown provider" });
+    try {
+      await manager.run(provider, () => manager.logout(provider));
+      res.json({ ok: true, loggedIn: false });
+    } catch (e) {
+      res.status(500).json({ error: (e as Error).message });
+    }
+  });
+
   return r;
 }

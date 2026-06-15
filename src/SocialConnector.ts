@@ -1,3 +1,4 @@
+import { rm } from "node:fs/promises";
 import { BrowserSession } from "./BrowserSession.js";
 import { AuthManager, type ManualLoginOptions } from "./AuthManager.js";
 import { createLogger } from "./logger.js";
@@ -46,6 +47,7 @@ export class SocialConnector {
   private readonly provider: SocialProvider;
   private readonly session: BrowserSession;
   private readonly auth: AuthManager;
+  private readonly dataDir: string;
   private started = false;
 
   constructor(
@@ -54,8 +56,9 @@ export class SocialConnector {
   ) {
     this.provider = typeof provider === "string" ? getProvider(provider) : provider;
     const logger = createLogger(opts.verbose ?? true);
+    this.dataDir = opts.userDataDir ?? this.provider.defaultUserDataDir;
     this.session = new BrowserSession({
-      userDataDir: opts.userDataDir ?? this.provider.defaultUserDataDir,
+      userDataDir: this.dataDir,
       headless: opts.headless ?? true,
       slowMo: opts.slowMo,
       locale: opts.locale,
@@ -217,5 +220,14 @@ export class SocialConnector {
   async close(): Promise<void> {
     await this.session.close();
     this.started = false;
+  }
+
+  /**
+   * Logs out: closes the browser and deletes the persistent profile directory,
+   * so the saved session is gone. The next login() starts fresh. Destructive.
+   */
+  async logout(): Promise<void> {
+    await this.close();
+    await rm(this.dataDir, { recursive: true, force: true });
   }
 }

@@ -66,6 +66,14 @@ export class ConnectorManager {
     return this.factory(p, visible);
   }
 
+  /** Logs out a provider: closes its connector and deletes the saved profile. */
+  async logout(p: ProviderId): Promise<void> {
+    const s = this.slot(p);
+    const c = s.connector ?? this.factory(p, false);
+    s.connector = null;
+    await c.logout();
+  }
+
   private async reap(): Promise<void> {
     const now = Date.now();
     for (const [, s] of this.slots) {
