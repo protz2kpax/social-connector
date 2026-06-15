@@ -6,7 +6,7 @@
   "main": "main.cjs",
   "scripts": {
     "start": "electron .",
-    "dist": "node prepack.mjs && electron-builder --mac"
+    "dist": "node prepack.mjs && electron-builder"
   },
   "devDependencies": {
     "electron": "^33.2.0",
@@ -27,6 +27,15 @@
       "category": "public.app-category.social-networking",
       "identity": null,
       "artifactName": "Relay-${version}-${arch}.${ext}"
+    },
+    "win": {
+      "target": ["nsis"],
+      "artifactName": "Relay-${version}-Setup.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true
     }
   }
 }

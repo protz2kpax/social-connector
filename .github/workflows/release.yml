@@ -1,6 +1,6 @@
 name: release
 
-# Build the macOS desktop app and attach the DMG/zip to a GitHub Release.
+# Build the desktop app for macOS + Windows and attach installers to a Release.
 # Trigger by pushing a version tag, e.g.:  git tag v0.2.0 && git push origin v0.2.0
 on:
   push:
@@ -11,8 +11,15 @@ permissions:
   contents: write # needed to create the Release
 
 jobs:
-  macos:
-    runs-on: macos-latest
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash # consistent `cd x && y` on both OSes
     steps:
       - uses: actions/checkout@v4
 
@@ -26,11 +33,12 @@ jobs:
       - run: cd app/web && npm install
       - run: cd app/desktop && npm install
 
-      # prepack.mjs stages the server + bundles Chromium, then electron-builder
-      # produces an unsigned DMG/zip in app/desktop/release.
+      # prepack.mjs stages the server + downloads the OS-native Chromium, then
+      # electron-builder produces the host-OS installer (DMG on mac, NSIS .exe on
+      # Windows) into app/desktop/release. Both unsigned.
       - run: cd app/desktop && npm run dist
         env:
-          CSC_IDENTITY_AUTO_DISCOVERY: "false" # unsigned build
+          CSC_IDENTITY_AUTO_DISCOVERY: "false" # macOS: unsigned
 
       - name: Publish release assets
         uses: softprops/action-gh-release@v2
@@ -38,4 +46,5 @@ jobs:
           files: |
             app/desktop/release/*.dmg
             app/desktop/release/*.zip
+            app/desktop/release/*.exe
           generate_release_notes: true

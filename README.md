@@ -105,21 +105,25 @@ Then open http://127.0.0.1:3001.
 - Reuses the same env as the CLI: `USER_DATA_DIR`, `HEADLESS`, `OPENAI_API_KEY`/`ANTHROPIC_API_KEY`/`AI_PROVIDER`, `CACHE_PASSPHRASE`.
 - **API keys can also be set in-app** via the **Settings** screen (no `.env` needed). They're stored locally in `~/.relay/settings.json` and applied to the AI Assistant.
 
-## Desktop app (macOS)
+## Desktop app (macOS & Windows)
 
-A double-click macOS app (`app/desktop`, Electron) wraps the local server + web
+A double-click desktop app (`app/desktop`, Electron) wraps the local server + web
 UI and **bundles Chromium** — nothing for the end user to install.
 
-- **Build locally:** `cd app/desktop && npm install && npm run dist` → produces
-  `app/desktop/release/Relay-<version>-<arch>.dmg` (runs `prepack.mjs` first to
-  stage the server + download the bundled browser).
+- **Build locally:** `cd app/desktop && npm install && npm run dist` builds for
+  the current OS (`prepack.mjs` stages the server + downloads the bundled
+  browser, then electron-builder packages it) → `app/desktop/release/`.
 - **Release via CI:** push a version tag — `git tag v0.2.0 && git push origin v0.2.0`
-  — and `.github/workflows/release.yml` builds the DMG/zip on a macOS runner and
-  attaches them to a GitHub Release.
-- **Unsigned build:** on first launch, right-click the app → **Open** to pass
-  Gatekeeper (signing/notarization needs an Apple Developer account).
+  — and `.github/workflows/release.yml` builds **macOS (DMG/zip)** and **Windows
+  (NSIS `.exe` installer)** on their respective runners and attaches them to a
+  GitHub Release. (Windows must build on Windows — that's why CI is per-OS.)
+- **Unsigned builds:**
+  - macOS: first launch → right-click the app → **Open** (Gatekeeper).
+  - Windows: SmartScreen warns → **More info → Run anyway**.
+  - Signing needs an Apple Developer account / a Windows code-signing cert.
 
-Sessions and data live under the app's data dir (`~/Library/Application Support/Relay`).
+Sessions and data live under the OS app-data dir (`~/Library/Application Support/Relay`
+on macOS, `%APPDATA%\Relay` on Windows).
 
 ## Usage — API
 
