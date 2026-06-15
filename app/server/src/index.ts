@@ -7,6 +7,8 @@ import { providersRouter } from "./routes/providers.js";
 import { broadcastRouter } from "./routes/broadcast.js";
 import { readRouter } from "./routes/read.js";
 import { aiRouter } from "./routes/ai.js";
+import { settingsRouter } from "./routes/settings.js";
+import { loadSettings } from "./settings.js";
 
 const HOST = "127.0.0.1";
 const PORT = Number(process.env.PORT ?? 3001);
@@ -29,6 +31,7 @@ export function createApp(manager: ConnectorManager = new ConnectorManager()): e
   app.use("/api", broadcastRouter(manager));
   app.use("/api", readRouter(manager));
   app.use("/api", aiRouter(manager));
+  app.use("/api", settingsRouter());
 
   const webDist = join(dirname(fileURLToPath(import.meta.url)), "../../web/dist");
   app.use(express.static(webDist));
@@ -36,6 +39,7 @@ export function createApp(manager: ConnectorManager = new ConnectorManager()): e
 }
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
+  await loadSettings(); // apply stored API keys to process.env before serving
   const server = createApp().listen(PORT, HOST, () => {
     console.log(`Relay UI on http://${HOST}:${PORT}`);
   });

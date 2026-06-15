@@ -58,3 +58,24 @@ export interface Post {
 export async function logout(provider: string): Promise<{ ok: boolean; loggedIn: boolean }> {
   return postJSON(`/api/logout/${provider}`, {});
 }
+
+/** Masked AI settings (provider + key hints, never the raw secrets). */
+export interface SettingsView {
+  aiProvider: "openai" | "anthropic" | null;
+  openai: string | null;
+  anthropic: string | null;
+}
+
+export interface SettingsPatch {
+  aiProvider?: "openai" | "anthropic";
+  openaiKey?: string;
+  anthropicKey?: string;
+}
+
+export async function getSettings(): Promise<SettingsView> {
+  return getJSON<SettingsView>("/api/settings");
+}
+
+export async function saveSettings(patch: SettingsPatch): Promise<SettingsView> {
+  return postJSON<SettingsView>("/api/settings", patch);
+}

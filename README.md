@@ -103,6 +103,7 @@ Then open http://127.0.0.1:3001.
 
 - **Localhost-only**: binds `127.0.0.1`, no auth — it controls logged-in social accounts.
 - Reuses the same env as the CLI: `USER_DATA_DIR`, `HEADLESS`, `OPENAI_API_KEY`/`ANTHROPIC_API_KEY`/`AI_PROVIDER`, `CACHE_PASSPHRASE`.
+- **API keys can also be set in-app** via the **Settings** screen (no `.env` needed). They're stored locally in `~/.relay/settings.json` and applied to the AI Assistant.
 
 ## Usage — API
 

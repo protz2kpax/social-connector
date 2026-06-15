@@ -7,14 +7,16 @@ import { Broadcast } from "./views/Broadcast.js";
 import { Inbox } from "./views/Read.js";
 import { Assistant } from "./views/Ai.js";
 import { Connections } from "./views/Sessions.js";
+import { Settings } from "./views/Settings.js";
 
-type View = "broadcast" | "inbox" | "assistant" | "connections";
+type View = "broadcast" | "inbox" | "assistant" | "connections" | "settings";
 
 const VIEW_META: Record<View, { title: string; subtitle: string }> = {
   broadcast: { title: "Broadcast", subtitle: "Send one message to all your channels at once" },
   inbox: { title: "Inbox", subtitle: "Read and manage your recent conversations" },
   assistant: { title: "Assistant", subtitle: "Intelligent agent for your social accounts" },
   connections: { title: "Connections", subtitle: "Manage your social provider sessions" },
+  settings: { title: "Settings", subtitle: "API keys for the AI Assistant, stored locally" },
 };
 
 export function App() {
@@ -49,6 +51,7 @@ export function App() {
             {view === "connections" && (
               <Connections providers={providers} refresh={refresh} />
             )}
+            {view === "settings" && <Settings />}
           </div>
         </div>
       </div>
