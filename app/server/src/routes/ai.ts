@@ -30,7 +30,7 @@ export function aiRouter(manager: ConnectorManager): Router {
       } catch (e) {
         runs.emit(runId, { type: "error", data: { message: (e as Error).message } });
       }
-    });
+    }).catch((e) => runs.emit(runId, { type: "error", data: { message: (e as Error).message } }));
   });
 
   r.post("/ai/:runId/confirm", (req, res) => {
