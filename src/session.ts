@@ -2,11 +2,14 @@ import type { SocialConnector } from "./SocialConnector.js";
 
 export type ConnectorFactory = (visible: boolean) => SocialConnector;
 
+/** Progress stages reported by ensureLoggedIn via onStatus. */
+export type LoginStatus = "checking" | "login-window-opened" | "logged-in";
+
 export interface EnsureLoggedInOptions {
   /** When not logged in, open a visible window and run the manual login. */
   autoLogin?: boolean;
-  /** Progress callback: "checking" | "login-window-opened" | "logged-in". */
-  onStatus?: (status: string) => void;
+  /** Progress callback. */
+  onStatus?: (status: LoginStatus) => void;
 }
 
 /**

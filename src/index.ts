@@ -29,4 +29,4 @@ export {
   UnsupportedActionError,
 } from "./errors.js";
 export { ensureLoggedIn } from "./session.js";
-export type { ConnectorFactory, EnsureLoggedInOptions } from "./session.js";
+export type { ConnectorFactory, EnsureLoggedInOptions, LoginStatus } from "./session.js";
