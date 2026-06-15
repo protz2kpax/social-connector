@@ -5,6 +5,7 @@ import { SocialConnector } from "./SocialConnector.js";
 import { runAi } from "./ai.js";
 import { SocialConnectorError } from "./errors.js";
 import { PROVIDERS } from "./providers/index.js";
+import { ensureLoggedIn } from "./session.js";
 import type { Post, ProviderId } from "./types.js";
 
 const require = createRequire(import.meta.url);
@@ -139,14 +140,16 @@ function makeConnector(
  * continues. Pass --no-login to keep the old "error out" behavior.
  */
 async function prepareConnector(provider: ProviderId, args: Args): Promise<SocialConnector> {
-  let fb = makeConnector(provider, { show: args.show });
-  if (args.noLogin) return fb;
-  if (await fb.isLoggedIn()) return fb;
-  await fb.close();
-  console.error(`[..] No ${provider} session — opening a window to log in...`);
-  fb = makeConnector(provider, { forceVisible: true });
-  await fb.login(); // manual; waits for you, then saves the session
-  return fb;
+  const factory = (visible: boolean) =>
+    makeConnector(provider, visible ? { forceVisible: true } : { show: args.show });
+  return ensureLoggedIn(factory, {
+    autoLogin: !args.noLogin,
+    onStatus: (s) => {
+      if (s === "login-window-opened") {
+        console.error(`[..] No ${provider} session — opening a window to log in...`);
+      }
+    },
+  });
 }
 
 function generalHelp(): string {
