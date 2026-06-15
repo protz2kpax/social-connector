@@ -11,6 +11,25 @@ feature: **broadcast** — compose one message and send it to several providers
 session status + login, reading (WhatsApp groups/chats/conversations,
 Facebook/LinkedIn own posts), and the natural-language AI agent.
 
+## Shared core, thin consumers
+
+The web app does **not** shell out to the CLI. Both the CLI (`src/cli.ts`) and
+the web server (`app/server`) are thin consumers of the **same library**
+(`src/`), importing `SocialConnector`, `runAi`, and the cache directly. There
+is one implementation of the business logic; the two front-ends differ only in
+I/O (terminal vs HTTP/SSE).
+
+Consequences:
+- **Encrypted cache** (`src/cache.ts`, used inside
+  `SocialConnector.readConversation`) works identically in the web app — the
+  `cacheTtl` query param maps to `cacheMaxAgeMs`.
+- **AI agent** reuses `runAi` (`src/ai.ts`) — same tools, same confirm gate.
+- **Tab-reuse perf** and all scraping live in the providers — shared for free.
+- **Auto-login** currently lives in the CLI (`prepareConnector` in
+  `src/cli.ts`). It is hoisted into the library as
+  `SocialConnector.ensureLoggedIn(opts)` so both the CLI and the web server use
+  one implementation (no duplication). See Library changes.
+
 ## Runtime model
 
 - **Local, single-user.** The server runs on the user's machine because the
@@ -67,9 +86,10 @@ Holds at most one live `SocialConnector` per provider.
   browsers. This is what makes broadcast parallel.
 - **Idle reaper.** A timer closes any connector idle longer than `IDLE_MS`
   (default 10 min) to free resources.
-- `loginVisible(provider, onEvent)`: closes the hidden connector for that
-  provider if present, creates a `forceVisible` one, runs `login()` (which
-  waits for the manual login / QR scan), and keeps it live (now logged in).
+- `loginVisible(provider, onStatus)`: closes the hidden connector for that
+  provider if present, creates a `forceVisible` one, and calls the library's
+  `SocialConnector.ensureLoggedIn({ autoLogin: true, onStatus })` (same code
+  path the CLI uses), keeping it live (now logged in).
 - On `SocialConnector` errors the manager drops the dead connector so the next
   `get` recreates it.
 
@@ -142,11 +162,19 @@ dev, Vite proxies `/api` to the server; in prod the server serves the built
 
 ## Library changes (minimal)
 
+- **`SocialConnector.ensureLoggedIn(opts?)`** is added to the library. It
+  probes the session (`isLoggedIn`); if not logged in and auto-login is
+  enabled, it runs `login()` (visible window) and returns. `opts` =
+  `{ autoLogin?: boolean; onStatus?: (s) => void }`. The CLI's
+  `prepareConnector` is refactored to call it (the CLI keeps its
+  hidden-probe-then-visible-window behavior via the connector's own headless
+  config and the `onStatus` callback for console messages). The web server
+  calls `ensureLoggedIn` with an `onStatus` that emits SSE events. One
+  implementation, two front-ends.
 - `runAi` (`src/ai.ts`) gains optional hooks so output can be redirected:
-  an `output(text)` for assistant/text lines and the existing `confirm`
-  callback already supports custom prompts. The CLI passes console-based
-  defaults; the server passes SSE-emitting versions. No behavior change to the
-  CLI.
+  an `output(text)` for assistant/text lines (the existing `confirm` callback
+  already supports custom prompts). The CLI passes console-based defaults; the
+  server passes SSE-emitting versions. No behavior change to the CLI.
 - No other library changes. The server consumes the existing
   `SocialConnector` API (`isLoggedIn`, `login`, `post`, `read`, `listGroups`,
   `listRecentChats`, `readConversation`, `close`).
