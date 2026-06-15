@@ -10,13 +10,15 @@ export function providersRouter(manager: ConnectorManager): Router {
   const r = Router();
 
   r.get("/providers", async (_req, res) => {
-    const out: Array<{ id: ProviderId; label: string; loggedIn: boolean }> = [];
-    for (const id of ALL) {
-      const loggedIn = await manager
-        .run(id, async () => (await manager.get(id)).isLoggedIn())
-        .catch(() => false);
-      out.push({ id, label: LABEL[id], loggedIn });
-    }
+    // Probe providers in parallel — different providers use different browsers.
+    const out = await Promise.all(
+      ALL.map(async (id) => {
+        const loggedIn = await manager
+          .run(id, async () => (await manager.get(id)).isLoggedIn())
+          .catch(() => false);
+        return { id, label: LABEL[id], loggedIn };
+      }),
+    );
     res.json(out);
   });
 
